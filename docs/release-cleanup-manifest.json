@@ -1,0 +1,117 @@
+[
+  {
+    "destination": "archives/implementation-history-20261027/finalize-community-copy.py",
+    "path": "scripts/finalize-community-copy.py",
+    "action": "archive-one-time-implementation-script"
+  },
+  {
+    "destination": "archives/implementation-history-20261027/finalize-mobile-theme.py",
+    "path": "scripts/finalize-mobile-theme.py",
+    "action": "archive-one-time-implementation-script"
+  },
+  {
+    "destination": "archives/implementation-history-20261027/fix-feature-watchers.py",
+    "path": "scripts/fix-feature-watchers.py",
+    "action": "archive-one-time-implementation-script"
+  },
+  {
+    "destination": "archives/implementation-history-20261027/fix-support-entry.py",
+    "path": "scripts/fix-support-entry.py",
+    "action": "archive-one-time-implementation-script"
+  },
+  {
+    "destination": "archives/implementation-history-20261027/initialize-membership.py",
+    "path": "scripts/initialize-membership.py",
+    "action": "archive-one-time-implementation-script"
+  },
+  {
+    "destination": "archives/implementation-history-20261027/integrate-community.py",
+    "path": "scripts/integrate-community.py",
+    "action": "archive-one-time-implementation-script"
+  },
+  {
+    "destination": "archives/implementation-history-20261027/integrate-engagement.py",
+    "path": "scripts/integrate-engagement.py",
+    "action": "archive-one-time-implementation-script"
+  },
+  {
+    "destination": "archives/implementation-history-20261027/integrate-support.py",
+    "path": "scripts/integrate-support.py",
+    "action": "archive-one-time-implementation-script"
+  },
+  {
+    "destination": "archives/implementation-history-20261027/prepare-membership.ps1",
+    "path": "scripts/prepare-membership.ps1",
+    "action": "archive-one-time-implementation-script"
+  },
+  {
+    "destination": "archives/implementation-history-20261027/redesign-and-integrate.py",
+    "path": "scripts/redesign-and-integrate.py",
+    "action": "archive-one-time-implementation-script"
+  },
+  {
+    "destination": "archives/implementation-history-20261027/resume-support-review.py",
+    "path": "scripts/resume-support-review.py",
+    "action": "archive-one-time-implementation-script"
+  },
+  {
+    "destination": "archives/implementation-history-20261027/finalize-release-docs.py",
+    "path": "scripts/finalize-release-docs.py",
+    "action": "archive-one-time-implementation-script"
+  },
+  {
+    "destination": "archives/implementation-history-20261027/browser-engagement-resume.js",
+    "path": "scripts/browser-engagement-resume.js",
+    "action": "archive-one-time-implementation-script"
+  },
+  {
+    "destination": "archives/implementation-history-20261027/browser-support-complete-resume.js",
+    "path": "scripts/browser-support-complete-resume.js",
+    "action": "archive-one-time-implementation-script"
+  },
+  {
+    "destination": "archives/implementation-history-20261027/browser-support-mobile-resume.js",
+    "path": "scripts/browser-support-mobile-resume.js",
+    "action": "archive-one-time-implementation-script"
+  },
+  {
+    "destination": "archives/implementation-history-20261027/browser-mobile-login-probe.js",
+    "path": "scripts/browser-mobile-login-probe.js",
+    "action": "archive-one-time-implementation-script"
+  },
+  {
+    "path": "scripts/extend-forum.py",
+    "destination": "archives/implementation-history-20261027/extend-forum.py",
+    "action": "archive-one-time-implementation-script"
+  },
+  {
+    "path": "scripts/integrate-phase2-ui.py",
+    "destination": "archives/implementation-history-20261027/integrate-phase2-ui.py",
+    "action": "archive-one-time-implementation-script"
+  },
+  {
+    "path": "scripts/connect-phase2-navigation.py",
+    "destination": "archives/implementation-history-20261027/connect-phase2-navigation.py",
+    "action": "archive-one-time-implementation-script"
+  },
+  {
+    "path": "scripts/connect-forum-ui.py",
+    "destination": "archives/implementation-history-20261027/connect-forum-ui.py",
+    "action": "archive-one-time-implementation-script"
+  },
+  {
+    "path": "scripts/fix-request-scopes.py",
+    "destination": "archives/implementation-history-20261027/fix-request-scopes.py",
+    "action": "archive-one-time-implementation-script"
+  },
+  {
+    "path": "scripts/finish-request-scopes.py",
+    "destination": "archives/implementation-history-20261027/finish-request-scopes.py",
+    "action": "archive-one-time-implementation-script"
+  },
+  {
+    "path": "scripts/update-phase2-docs.py",
+    "destination": "archives/implementation-history-20261027/update-phase2-docs.py",
+    "action": "archive-one-time-implementation-script"
+  }
+]

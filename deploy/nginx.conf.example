@@ -1,0 +1,41 @@
+# Replace domain and TLS paths. Deploy only the web dist/ contents here.
+limit_req_zone $binary_remote_addr zone=shuyang_login:10m rate=10r/m;
+server {
+    listen 80;
+    server_name members.example.com;
+    return 301 https://$host$request_uri;
+}
+server {
+    listen 443 ssl;
+    server_name members.example.com;
+    ssl_certificate /etc/letsencrypt/live/members.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/members.example.com/privkey.pem;
+    root /var/www/shuyang-home;
+    index index.html;
+    client_max_body_size 64k;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy same-origin always;
+    add_header X-Frame-Options DENY always;
+    location ~ ^/api/auth/(login|register)$ {
+        limit_req zone=shuyang_login burst=10 nodelay;
+        rewrite ^/api/(.*)$ /$1 break;
+        proxy_pass http://127.0.0.1:9999;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+    }
+    location /api/ {
+        proxy_pass http://127.0.0.1:9999/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_read_timeout 30s;
+    }
+    location = /api/media/upload {
+        client_max_body_size 16m;
+        proxy_pass http://127.0.0.1:9999/media/upload;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_read_timeout 60s;
+    }
+    location / { try_files $uri $uri/ /index.html; }
+    location ~ /\. { deny all; }
+}

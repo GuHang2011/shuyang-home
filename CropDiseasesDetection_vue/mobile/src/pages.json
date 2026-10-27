@@ -1,0 +1,4 @@
+{
+  "pages": [{ "path": "pages/index/index", "style": { "navigationBarTitleText": "沭阳之家", "enablePullDownRefresh": true } }],
+  "globalStyle": { "navigationBarTextStyle": "black", "navigationBarTitleText": "沭阳之家", "navigationBarBackgroundColor": "#fffefa", "backgroundColor": "#f7f5ef" }
+}

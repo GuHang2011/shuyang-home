@@ -1,0 +1,34 @@
+async page => {
+  await page.getByRole('button', { name: '退出登录', exact: true }).click();
+  await page.getByRole('button', { name: '登录 / 加入', exact: true }).click();
+  await page.getByRole('textbox', { name: '手机号 / 管理员账号' }).fill('admin');
+  await page.getByRole('textbox', { name: '登录密码', exact: true }).fill('BrowserAdmin2026');
+  await page.getByRole('button', { name: '登录，回家看看', exact: true }).click();
+  await page.getByRole('dialog').waitFor({ state: 'hidden' });
+  await page.getByRole('button', { name: /管理工作台/ }).click();
+  await page.getByRole('button', { name: '审核申请', exact: true }).click();
+  await page.getByRole('button', { name: '确认审核', exact: true }).click();
+  await page.getByRole('dialog').waitFor({ state: 'hidden' });
+  await page.getByRole('row').filter({ hasText: '验收老乡' }).getByText('已通过', { exact: true }).waitFor();
+  await page.screenshot({ path: '../output/playwright/admin-members.png', fullPage: true });
+  await page.getByRole('button', { name: '乡情活动', exact: true }).click();
+  await page.getByRole('button', { name: '发布活动', exact: true }).click();
+  await page.getByRole('textbox', { name: '活动名称' }).fill('验收活动 · 老乡茶叙');
+  await page.getByLabel('人数上限').fill('10');
+  const date = new Date(Date.now() + 48 * 3600000).toISOString().slice(0, 10);
+  await page.getByLabel('开始时间（北京时间）').fill(date + 'T14:00');
+  await page.getByLabel('结束时间（北京时间）').fill(date + 'T16:00');
+  await page.getByRole('textbox', { name: '活动详情' }).fill('这是隔离测试库中的浏览器验收活动，用于验证报名流程，不是正式活动。');
+  await page.getByRole('button', { name: '保存活动', exact: true }).click();
+  await page.getByRole('dialog').waitFor({ state: 'hidden' });
+  await page.getByRole('button', { name: '验收活动 · 老乡茶叙', exact: true }).waitFor();
+  await page.getByRole('button', { name: '我的会员中心', exact: true }).click();
+  await page.getByRole('button', { name: '修改密码', exact: true }).click();
+  await page.getByRole('textbox', { name: '原密码', exact: true }).fill('BrowserAdmin2026');
+  await page.getByRole('textbox', { name: '新密码', exact: true }).fill('BrowserAdminChanged2026');
+  await page.getByRole('button', { name: '更新密码', exact: true }).click();
+  await page.getByRole('dialog').waitFor({ state: 'hidden' });
+  await page.getByRole('button', { name: '退出登录', exact: true }).click();
+  await page.getByRole('button', { name: '登录 / 加入', exact: true }).waitFor();
+  console.log('Admin review, create event, password rotation and logout: PASS');
+}

@@ -1,0 +1,430 @@
+[
+  {
+    "action": "archive",
+    "path": "一键部署.ps1"
+  },
+  {
+    "action": "archive",
+    "path": "停止服务.ps1"
+  },
+  {
+    "action": "archive",
+    "path": "deploy-test.txt"
+  },
+  {
+    "action": "archive",
+    "path": "run_syntax_check.txt"
+  },
+  {
+    "action": "archive",
+    "path": "CropDiseasesDetection_springboot\\src"
+  },
+  {
+    "action": "archive",
+    "path": "CropDiseasesDetection_springboot\\data"
+  },
+  {
+    "action": "archive",
+    "path": "CropDiseasesDetection_springboot\\README.md"
+  },
+  {
+    "action": "archive",
+    "path": "CropDiseasesDetection_vue\\src"
+  },
+  {
+    "action": "archive",
+    "path": "CropDiseasesDetection_vue\\shared"
+  },
+  {
+    "action": "archive",
+    "path": "CropDiseasesDetection_vue\\tests"
+  },
+  {
+    "action": "archive",
+    "path": "CropDiseasesDetection_vue\\docs"
+  },
+  {
+    "action": "archive",
+    "path": "CropDiseasesDetection_vue\\README.md"
+  },
+  {
+    "action": "archive",
+    "path": "CropDiseasesDetection_vue\\playwright.config.ts"
+  },
+  {
+    "action": "archive",
+    "path": "CropDiseasesDetection_vue\\mobile\\src"
+  },
+  {
+    "action": "archive",
+    "path": "CropDiseasesDetection_vue\\mobile\\tests"
+  },
+  {
+    "action": "archive",
+    "path": "README.md"
+  },
+  {
+    "action": "archive",
+    "path": "scripts\\start-local-preview.ps1"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".playwright-cli"
+  },
+  {
+    "action": "delete-generated",
+    "path": "__pycache__"
+  },
+  {
+    "action": "delete-generated",
+    "path": "CropDiseasesDetection_springboot\\target"
+  },
+  {
+    "action": "delete-generated",
+    "path": "CropDiseasesDetection_vue\\.cache"
+  },
+  {
+    "action": "delete-generated",
+    "path": "CropDiseasesDetection_vue\\.playwright-cli"
+  },
+  {
+    "action": "delete-generated",
+    "path": "CropDiseasesDetection_vue\\output"
+  },
+  {
+    "action": "delete-generated",
+    "path": "CropDiseasesDetection_vue\\mobile\\dist"
+  },
+  {
+    "action": "delete-generated",
+    "path": "CropDiseasesDetection_vue\\dist"
+  },
+  {
+    "action": "delete-generated",
+    "path": "CropDiseasesDetection_vue\\dist-login-search-review"
+  },
+  {
+    "action": "delete-generated",
+    "path": "CropDiseasesDetection_vue\\dist-release-20261013"
+  },
+  {
+    "action": "delete-generated",
+    "path": "CropDiseasesDetection_vue\\dist-release-20261018"
+  },
+  {
+    "action": "delete-generated",
+    "path": "CropDiseasesDetection_vue\\dist-review-20261019"
+  },
+  {
+    "action": "delete-generated",
+    "path": "CropDiseasesDetection_vue\\dist-review-20261019-r2"
+  },
+  {
+    "action": "delete-generated",
+    "path": "CropDiseasesDetection_vue\\dist-review-20261019-r3"
+  },
+  {
+    "action": "delete-generated",
+    "path": "CropDiseasesDetection_vue\\dist-review-20261020"
+  },
+  {
+    "action": "delete-generated",
+    "path": "CropDiseasesDetection_vue\\dist-review-20261020-r2"
+  },
+  {
+    "action": "delete-generated",
+    "path": "CropDiseasesDetection_vue\\dist-review-current"
+  },
+  {
+    "action": "delete-generated",
+    "path": "CropDiseasesDetection_vue\\dist-test-20261017"
+  },
+  {
+    "action": "delete-generated",
+    "path": "CropDiseasesDetection_vue\\dist-test-20261018"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\acceptance-060ce9ce88"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\acceptance-2425b3926a"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\acceptance-31f623a514"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\acceptance-34834e74ce"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\acceptance-350c782b74"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\acceptance-3cb126c707"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\acceptance-6332ac38d0"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\acceptance-9e8d24a2e2"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\acceptance-a18678eb2b"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\acceptance-a4de1faaea"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\acceptance-aaf2180228"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\acceptance-b579a7fe9a"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\acceptance-d016295908"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\acceptance-de16a7e4ae"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\acceptance-e67fa2884a"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\browser-artifacts"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\deploy-check-2ea42db951ab4d18872b7dcb8d58f7f6"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\deploy-check-4e9b858b5c93432ab355266e1d326e7d"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\deploy-check-9f3fe2c67e0345e38a1eed2869534270"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\deploy-check-bb7be9e81f05413ab5b157a7cf8e1bb4"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\deploy-check-da1c8fa76fe14865b344604a3d4c3616"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\homepage-verification"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\package-check-1af2c034007e4cdfac3bb9755a969a15"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\package-check-26b3c0828a0c4d1d8615346db3eb4c0d"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\package-check-43bcc77a663848c0b557a312741ae770"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\package-check-4627335e03b747c8b25a06d707b85373"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\package-check-a547d221ceba4727b84806a5327d55a3"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\package-check-ac19371f4e914c749a74f3e7ed270086"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\package-check-aec3bf322c9e49cdb47feadff282de46"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\package-check-c093cccff9dd4f8488dc25fb22ac67e9"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\package-check-c524355daf5d40ddba5a211dab0c6bce"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\pre-release-clean-1f7f82a86a0d407b922303f3e2561f94"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\preview-22c47b9dd6c1464f94e417b469d9b253"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\preview-6fbfbd88ea184ee0bbc9a09af78811ac"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\preview-abdf0eb97338451788242b88d232face"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\usability-27967fc0"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\usability-8e3ad355"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\verify-shots"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\acceptance-result.json"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\apply_role_ui_fixes.py"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\browser-results.json"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\local-preview-info.json"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\package-release-checks.json"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\release-acceptance.log"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\release-backend-build.log"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\review-browser.cjs"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\review-dom-collections.txt"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\review-dom-college-care.txt"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\review-dom-college-tasks.txt"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\review-dom-dashboard.txt"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\review-dom-registry.txt"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\review-material-flow.cjs"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\review-navigation-flow.cjs"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\review-navigation-result.json"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\review-task-flow.cjs"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\start-usability-review.py"
+  },
+  {
+    "action": "delete-generated",
+    "path": ".cache\\stop-usability-review"
+  },
+  {
+    "action": "archive",
+    "path": ".workbuddy"
+  },
+  {
+    "action": "archive",
+    "path": "CropDiseasesDetection_springboot"
+  },
+  {
+    "action": "archive",
+    "path": "CropDiseasesDetection_vue"
+  },
+  {
+    "action": "archive",
+    "path": "data"
+  },
+  {
+    "action": "archive",
+    "path": "deploy"
+  },
+  {
+    "action": "archive",
+    "path": "docs"
+  },
+  {
+    "action": "archive",
+    "path": "douban_top250.py"
+  },
+  {
+    "action": "archive",
+    "path": "output"
+  },
+  {
+    "action": "archive",
+    "path": "portfolio-redesign"
+  },
+  {
+    "action": "archive",
+    "path": "Restore-Backup.ps1"
+  },
+  {
+    "action": "archive",
+    "path": "run"
+  },
+  {
+    "action": "archive",
+    "path": "scripts"
+  },
+  {
+    "action": "archive",
+    "path": "skill-install-review"
+  },
+  {
+    "action": "archive",
+    "path": "tests"
+  }
+]

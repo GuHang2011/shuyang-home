@@ -1,0 +1,19 @@
+import { useRequestScope } from './useRequestScope';
+import { computed, onMounted, ref, watch } from 'vue';
+import { type Row, requestId } from './domain';
+export const productCategories = ['家乡美食', '农副产品', '手工文创', '其他特产'];
+export const orderStates: Record<string,string> = { pending: '待人工确认', confirmed: '已确认', shipped: '已发货', ready: '待自提', completed: '已收货', cancelled: '已取消' };
+export const settlementStates: Record<string,string> = { unconfirmed: '待线下结算', confirmed: '已核实线下结算', refunded: '已核实线下退款' };
+export const money = (cents: number) => '¥' + (Number(cents || 0) / 100).toFixed(2);
+export function useShop(getUser: () => Row | null, api: (path: string, method?: string, body?: unknown) => Promise<any>) {
+  const products = ref<Row[]>([]), orders = ref<Row[]>([]), selected = ref<Row | null>(null), filter = ref('全部'), query = ref(''), tab = ref('products'), manage = ref(false), error = ref(''), busy = ref(false), ordering = ref(false), orderForm = ref<Row>({});let generation = 0;const scope = useRequestScope();
+  const admin = computed(() => ['superadmin', 'admin'].includes(getUser()?.role || ''));
+  const filtered = computed(() => products.value.filter(p => (filter.value === '全部' || p.category === filter.value) && [p.title,p.origin,p.description].join(' ').includes(query.value)));
+  async function load() { const version = ++generation, current = scope.capture();try { const data = await api('/products?manage=' + (manage.value && admin.value));if ((version !== generation || !current())) return;products.value = data;if (getUser()?.status === 'approved') { const data = await api('/orders?manage=' + (manage.value && admin.value));if ((version === generation && current())) orders.value = data; }else orders.value = []; } catch(e) { if (current()) error.value = (e as Error).message; } }
+  function buy(product: Row) { selected.value = product;orderForm.value = { productId: product.id, requestId: requestId(), quantity: 1, delivery: 'shipping', name: getUser()?.name || '', phone: getUser()?.phone || '', address: '', consent: false };ordering.value = true;error.value = ''; }
+  async function submitOrder() { busy.value = true;error.value = '';const current = scope.capture();try { await api('/orders', 'POST', { ...orderForm.value, quantity: Number(orderForm.value.quantity) });if (!current()) return false;ordering.value = false;selected.value = null;tab.value = 'orders';await load();return current(); } catch(e) { if (current()) error.value = (e as Error).message;return false; } finally { if (current()) busy.value = false; } }
+  async function saveProduct(form: Row) { busy.value = true;error.value = '';const current = scope.capture();try { await api('/products','POST',{ ...form, stock: Number(form.stock) });if (!current()) return false;await load();return current(); } catch(e) { if (current()) error.value = (e as Error).message;return false; } finally { if (current()) busy.value = false; } }
+  async function act(row: Row, action: string, note = '') { busy.value = true;error.value = '';const current = scope.capture();try { await api('/orders/' + encodeURIComponent(row.id) + '/action','POST',{ action, note, verified: action === 'settle' });if (!current()) return false;await load();return current(); } catch(e) { if (current()) error.value = (e as Error).message;return false; } finally { if (current()) busy.value = false; } }
+  watch([() => getUser()?.id, () => getUser()?.role, () => getUser()?.status, manage], () => { scope.invalidate();busy.value = false;error.value = '';orders.value = [];products.value = []; selected.value = null;ordering.value = false;orderForm.value = {};load(); }, { flush: 'sync' });onMounted(load);
+  return { products, orders, selected, filter, query, tab, manage, error, busy, ordering, orderForm, admin, filtered, load, buy, submitOrder, saveProduct, act };
+}

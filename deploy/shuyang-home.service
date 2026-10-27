@@ -1,0 +1,22 @@
+[Unit]
+Description=Shuyang Home Membership
+After=network.target
+
+[Service]
+Type=simple
+User=shuyang
+Group=shuyang
+WorkingDirectory=/opt/shuyang-home
+EnvironmentFile=/etc/shuyang-home.env
+ExecStart=/usr/bin/java -jar /opt/shuyang-home/shuyang-home-1.0.0.jar --server.address=127.0.0.1
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/shuyang-home
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

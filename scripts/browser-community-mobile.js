@@ -1,0 +1,30 @@
+async page => {
+  await page.goto('http://127.0.0.1:18890');
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByText('我的', { exact: true }).click();
+  await page.getByText('登录账号', { exact: true }).click();
+  await page.getByRole('textbox').nth(0).fill('13800008882');
+  await page.getByRole('textbox').nth(1).fill('CommunityMember2026');
+  await page.getByText('登录，回家看看', { exact: true }).click();
+  await page.getByText('已通过 · 会员', { exact: true }).waitFor();
+  await page.getByText('我的资源与交换', { exact: true }).click();
+  await page.getByText('我的交换', { exact: true }).click();
+  await page.getByText('确认我已完成交付', { exact: true }).click();
+  await page.getByText('确定', { exact: true }).click();
+  await page.getByText('双方已确认完成', { exact: true }).waitFor();
+  await page.screenshot({ path: '../output/playwright/resource-exchange-mobile.png', fullPage: true, animations: 'disabled' });
+  await page.getByText('我的', { exact: true }).click();
+  await page.getByText('我的论坛话题', { exact: true }).click();
+  await page.getByText('参与讨论 →', { exact: true }).click();
+  await page.getByText('欢迎老乡，这是经过真实接口提交的验收回复。', { exact: true }).waitFor();
+  await page.getByRole('textbox').fill('小程序共用页面的回帖验收，期待与老乡相聚。');
+  await page.getByText('提交回复', { exact: true }).click();
+  await page.locator('.reply-item .content-text').filter({ hasText: '小程序共用页面的回帖验收，期待与老乡相聚。' }).waitFor();
+  await page.screenshot({ path: '../output/playwright/forum-mobile.png', fullPage: true, animations: 'disabled' });
+  if (errors.length) throw new Error(errors.join('\n'));
+  return { mobileExchangeBilateralCompletion: 'passed', mobileForumReply: 'passed', runtimeErrors: 0 };
+}

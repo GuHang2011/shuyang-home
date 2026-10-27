@@ -1,0 +1,17 @@
+<script setup lang="ts">
+import { api, baseUrl, downloadMedia } from '../platform';
+import { type Row } from '../../../shared/domain';
+import { useGallery } from '../../../shared/useGallery';
+const props = defineProps<{ user: Row | null }>();const { albums, photos, selected, source, error, detail } = useGallery(() => props.user, api);
+function external() {
+  // #ifdef H5
+  window.open(source.value.url, '_blank', 'noopener,noreferrer');
+  // #endif
+  // #ifdef MP-WEIXIN
+  uni.setClipboardData({ data: source.value.url, success: () => uni.showToast({ title: '链接已复制，可在浏览器查看', icon: 'none' }) });
+  // #endif
+}
+async function preview(row: Row) { try { const path = await downloadMedia(row.mediaId);uni.previewImage({ urls: [path], current: path }); } catch(e) { error.value = (e as Error).message; } }
+</script>
+<template><view><view class="title">相聚的日子</view><view class="intro">把乡音、笑脸与每一次相助，留在家里的相册。</view><view v-if="error" class="error">{{ error }}</view><template v-if="selected"><button class="text-button" @click="selected = null">← 所有相册</button><view class="panel"><view class="card-title">{{ selected.title }}</view><view class="meta">{{ selected.date }} · {{ selected.location }}</view><view class="prose">{{ selected.description }}</view></view><view v-if="!photos.length" class="empty">等待记录下第一份美好。</view><view class="mobile-photo-wall"><view v-for="row in photos" :key="row.id" @click="preview(row)"><image v-if="row.status === 'published' && selected.status === 'published'" :src="baseUrl() + '/media/' + row.mediaId" mode="aspectFill" lazy-load/><view v-else class="private-image">点击预览</view><text>{{ row.caption }}</text></view></view></template><template v-else><view class="source-album" @click="external"><text class="source-mark">忆</text><view><text>我们的活动原相册</text><view>{{ source.title }}</view><text>重温相聚的时刻 ↗</text></view></view><view v-if="!albums.length" class="empty">活动影像正在整理中<br/>可先查看上方原相册</view><view v-for="album in albums" :key="album.id" class="mobile-album" @click="detail(album)"><image v-if="album.cover" :src="baseUrl() + '/media/' + album.cover" mode="aspectFill" lazy-load/><view v-else class="album-placeholder">乡情 · 留影</view><view><view class="meta">{{ album.date }} · {{ album.count }} 张照片</view><view class="card-title">{{ album.title }}</view><view class="meta">{{ album.location }}</view></view></view></template></view></template>
+<style scoped>.source-album{display:flex;gap:28rpx;align-items:center;background:#263f54;color:#fff5db;border-radius:30rpx;padding:34rpx;margin-bottom:30rpx}.source-mark{font:70rpx 'KaiTi',serif;background:#e2cea0;color:#375467;border-radius:50%;width:120rpx;height:120rpx;display:flex;align-items:center;justify-content:center}.source-album>view>text{font-size:22rpx;color:#c6d1c8}.source-album>view>view{font-size:30rpx;margin:15rpx 0}.mobile-album{border:1px solid #e5dece;border-radius:28rpx;overflow:hidden;background:#fffefa;margin:25rpx 0}.mobile-album>image,.album-placeholder{width:100%;height:330rpx}.album-placeholder{background:#e7e0cd;display:flex;align-items:center;justify-content:center;color:#9b8760;font-size:36rpx}.mobile-album>view:last-child{padding:24rpx 30rpx}.mobile-photo-wall{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20rpx}.mobile-photo-wall>view{background:#fffefa;border-radius:20rpx;overflow:hidden}.mobile-photo-wall image,.private-image{width:100%;height:270rpx}.mobile-photo-wall text{display:block;font-size:22rpx;color:#8b8068;padding:16rpx}</style>

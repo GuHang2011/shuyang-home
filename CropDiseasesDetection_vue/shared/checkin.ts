@@ -1,0 +1,16 @@
+import { useRequestScope } from './useRequestScope';
+import { computed, onMounted, ref, watch } from 'vue';
+import { type Row } from './domain';
+export function parseCheckinCode(value: string) { const match = /^SYH:CHECKIN:([0-9a-f-]{36}):([0-9a-f-]{36})$/i.exec(value.trim());return match ? { eventId: match[1], code: match[2] } : null; }
+export function useCheckin(getUser: () => Row | null, api: (path: string, method?: string, body?: unknown) => Promise<any>, locate: () => Promise<Row>) {
+  const events = ref<Row[]>([]), signups = ref<Row[]>([]), selected = ref<Row | null>(null), settings = ref<Row>({}), error = ref(''), message = ref(''), busy = ref(false), code = ref('');let generation = 0;const scope = useRequestScope();
+  const staff = computed(() => ['superadmin','admin','organizer'].includes(getUser()?.role || ''));
+  const mine = computed(() => signups.value.filter(s => s.status !== 'cancelled'));
+  const signup = computed(() => signups.value.find(s => s.eventId === selected.value?.id));
+  async function load() { const version = ++generation, current = scope.capture();if (getUser()?.status !== 'approved') return;try { const [nextEvents,nextSignups] = await Promise.all([api('/events'),api('/my/signups')]);if ((version !== generation || !current())) return;events.value = nextEvents;signups.value = nextSignups; } catch(e) { if ((version === generation && current())) error.value = (e as Error).message; } }
+  async function select(row: Row, token = '') { const valid = scope.capture();selected.value = row;const current = () => valid() && selected.value?.id === row.id;settings.value = {};code.value = token;error.value = '';message.value = '';try { const value = await api('/events/' + row.id + '/checkin-config');if (current()) settings.value = value; } catch(e) { if (current()) error.value = (e as Error).message; } }
+  async function scanned(value: string) { const result = parseCheckinCode(value);if (!result) { error.value = '已识别二维码，内容不是本平台活动签到码。不会自动打开陌生链接。';return false; }const current = scope.capture();try { const row = await api('/events/' + result.eventId);if (!current()) return false;await select(row,result.code);return current(); } catch(e) { if (current()) error.value = (e as Error).message;return false; } }
+  async function checkin() { if (!selected.value || busy.value) return;const eventId = selected.value.id, token = code.value;const valid = scope.capture();const current = () => valid() && selected.value?.id === eventId;busy.value = true;error.value = '';message.value = '';try { const position = await locate();if (!current()) return;await api('/events/' + eventId + '/self-check-in','POST',{ ...position, code: token });if (!current()) return;await load();if (!current()) return;message.value = '地点签到成功，欢迎来相聚。志愿时长由组织者另行核定。'; } catch(e) { if (current()) error.value = (e as Error).message; } finally { if (valid()) busy.value = false; } }
+  watch([() => getUser()?.id, () => getUser()?.role, () => getUser()?.status], () => { scope.invalidate();busy.value = false;error.value = ''; generation++;code.value = '';message.value = '';events.value = [];signups.value = [];selected.value = null;settings.value = {};load(); }, { flush: 'sync' });onMounted(load);
+  return { events, mine, signup, selected, settings, error, message, busy, staff, load, select, scanned, checkin };
+}
