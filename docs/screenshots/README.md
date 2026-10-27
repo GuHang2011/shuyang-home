@@ -30,3 +30,5 @@
 [电脑选城](desktop-weather-city.png) · [手机选城](mobile-weather-city.png)
 
 ![手机天气选城](mobile-weather-city.png)
+
+[电脑会员欢迎页](desktop-member-welcome.png) · [手机会员欢迎页](mobile-member-welcome.png)：访客状态，统一按钮高度、对齐和会员服务说明。
