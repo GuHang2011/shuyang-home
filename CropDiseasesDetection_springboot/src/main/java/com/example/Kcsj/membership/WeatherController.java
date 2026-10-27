@@ -11,4 +11,5 @@ public class WeatherController {
     public WeatherController(WeatherService weather,MemberAuth auth){this.weather=weather;this.auth=auth;}
     @GetMapping public Map<String,Object> current(@RequestParam String latitude,@RequestParam String longitude,HttpServletRequest req){auth.limit("weather:"+req.getRemoteAddr(),120);return map("code",0,"data",weather.forecast(latitude,longitude));}
     @GetMapping("/cities") public Map<String,Object> cities(@RequestParam String name,HttpServletRequest req){auth.limit("weather-city:"+req.getRemoteAddr(),60);return map("code",0,"data",weather.cities(name));}
+    @GetMapping("/network-location") public Map<String,Object> networkLocation(HttpServletRequest req){auth.limit("weather-network:"+req.getRemoteAddr(),30);return map("code",0,"data",weather.networkLocation(req.getRemoteAddr()));}
 }

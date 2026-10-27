@@ -11,11 +11,13 @@ $previousPassword=$env:SHUYANG_ADMIN_PASSWORD
 $previousDb=$env:SHUYANG_DB_URL
 $previousPort=$env:SHUYANG_PORT
 $previousProxy=$env:VITE_API_PROXY_TARGET
+$previousLocalNetwork=$env:SHUYANG_WEATHER_LOCAL_NETWORK
 try {
   $env:SHUYANG_ADMIN_PASSWORD=$password
   $env:SHUYANG_DB_URL='jdbc:h2:mem:shuyang-preview;DB_CLOSE_DELAY=-1'
   $env:SHUYANG_PORT=[string]$BackendPort
   $env:VITE_API_PROXY_TARGET="http://127.0.0.1:$BackendPort"
+  $env:SHUYANG_WEATHER_LOCAL_NETWORK='true'
   $java=if($env:JAVA_HOME){Join-Path $env:JAVA_HOME 'bin\java.exe'}else{(Get-Command java.exe).Source}
   $node=(Get-Command node.exe).Source
   $backend=Start-Process -FilePath $java -ArgumentList @('-jar','target/shuyang-home-1.0.0.jar','--server.address=127.0.0.1') -WorkingDirectory (Join-Path $root 'CropDiseasesDetection_springboot') -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $work 'backend.log') -RedirectStandardError (Join-Path $work 'backend-error.log')
@@ -29,4 +31,5 @@ try {
   $env:SHUYANG_DB_URL=$previousDb
   $env:SHUYANG_PORT=$previousPort
   $env:VITE_API_PROXY_TARGET=$previousProxy
+  $env:SHUYANG_WEATHER_LOCAL_NETWORK=$previousLocalNetwork
 }

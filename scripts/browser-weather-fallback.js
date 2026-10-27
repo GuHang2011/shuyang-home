@@ -4,10 +4,11 @@ async page => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.getByRole('link', { name: 'Open-Meteo ↗', exact: true }).waitFor();
   await page.context().grantPermissions([], { origin: 'http://127.0.0.1:18888' });
+  await page.route('**/api/weather/network-location', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ code: 503, message: '网络定位暂时不可用，请手动选择城市' }) }));
   try {
     await page.locator('.weather-card header button').click();
     await page.getByRole('button', { name: '使用我的位置', exact: true }).click();
-    await page.getByText('未获得定位授权，你仍可以手动选择城市。', { exact: false }).waitFor();
+    await page.getByText('网络定位暂时不可用，请手动选择城市', { exact: false }).waitFor();
     await page.getByRole('button', { name: '沭阳', exact: true }).click();
     await page.getByRole('button', { name: '⌖ 沭阳 ⌄', exact: true }).waitFor();
     await page.getByRole('link', { name: 'Open-Meteo ↗', exact: true }).waitFor();
@@ -20,5 +21,5 @@ async page => {
     await page.getByRole('button', { name: '重新获取', exact: true }).click();
     await page.getByRole('link', { name: 'Open-Meteo ↗', exact: true }).waitFor();
     return { deniedGeolocation: 'passed', manualCityFallback: 'passed', simulatedServiceFailure: 'passed', realRetry: 'passed' };
-  } finally { await page.context().clearPermissions();await page.unroute('**/api/weather?*'); }
+  } finally { await page.context().clearPermissions();await page.unroute('**/api/weather?*');await page.unroute('**/api/weather/network-location'); }
 }

@@ -24,3 +24,9 @@
 [论坛语音帖子与回复](mobile-forum-audio.png)：390×1000视口，6秒合成提示音，非真人录音。
 
 ![论坛语音](mobile-forum-audio.png)
+
+天气选城修复：以下截图使用真实城市搜索结果，输入“淮安”显示江苏淮安市，新增网络定位入口。未展示用户的真实定位信息。
+
+[电脑选城](desktop-weather-city.png) · [手机选城](mobile-weather-city.png)
+
+![手机天气选城](mobile-weather-city.png)
