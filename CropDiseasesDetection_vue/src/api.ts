@@ -1,9 +1,21 @@
 const tokenKey = 'shuyang_home_session';
 export const getToken = () => sessionStorage.getItem(tokenKey) || '';
-export async function uploadMedia(file: File, scope: string, roomId = '') {
+export async function uploadMedia(file: File, scope: string, roomId = '', progress?: (value: number) => void) {
   const body = new FormData();body.append('file', file);body.append('scope', scope);body.append('roomId', roomId);
-  const response = await fetch('/api/media/upload', { method: 'POST', headers: { Authorization: 'Bearer ' + getToken() }, body });
-  const result = await response.json();if (!response.ok || result.code !== 0) throw new Error(result.message || '上传失败');return result.data;
+  const requestToken = getToken();
+  return new Promise<any>((resolve, reject) => {
+    const request = new XMLHttpRequest();request.open('POST', '/api/media/upload');request.timeout = 60000;
+    request.setRequestHeader('Authorization', 'Bearer ' + requestToken);
+    request.upload.onprogress = event => { if (event.lengthComputable) progress?.(Math.round(event.loaded / event.total * 100)); };
+    request.onload = () => {
+      if (request.status === 401 && requestToken && requestToken === getToken()) { setToken('');window.dispatchEvent(new Event('session-expired')); }
+      try { const result = JSON.parse(request.responseText);if (request.status < 200 || request.status >= 300 || result.code !== 0) throw new Error(result.message || '上传失败，请重试');resolve(result.data); }
+      catch (e) { reject(e instanceof SyntaxError ? new Error('上传服务响应异常，请重试') : e); }
+    };
+    request.onerror = () => reject(new Error('上传失败，请检查网络后重试'));
+    request.ontimeout = () => reject(new Error('上传超时，请重试或选择较小的照片'));
+    request.send(body);
+  });
 }
 export async function mediaBlob(id: string) { const response = await fetch('/api/media/' + encodeURIComponent(id), { headers: getToken() ? { Authorization: 'Bearer ' + getToken() } : {} });if (!response.ok) { const error = await response.json();throw new Error(error.message || '附件暂不可用'); }return response.blob(); }
 export function setToken(token: string) { token ? sessionStorage.setItem(tokenKey, token) : sessionStorage.removeItem(tokenKey); }

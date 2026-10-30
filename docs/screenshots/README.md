@@ -32,3 +32,10 @@
 ![手机天气选城](mobile-weather-city.png)
 
 [电脑会员欢迎页](desktop-member-welcome.png) · [手机会员欢迎页](mobile-member-welcome.png)：访客状态，统一按钮高度、对齐和会员服务说明。
+
+
+## 2026-10-30 字体与照片功能
+
+[手机首页](mobile-readable-home.png) · [电脑照片帖子](desktop-forum-photos.png) · [手机照片帖子](mobile-forum-photos.png) · [多照片上传预览](mobile-photo-upload.png)
+
+本组移动截图为390×900，图片为程序生成的山水示例，不是真实活动照片；会员和帖子为隔离验收数据。上传预览中的照片尚未提交。

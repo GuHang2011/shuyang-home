@@ -40,4 +40,11 @@ watch(() => props.user?.id, () => { dialog.value?.close();kind.value = '';form.v
 @media(max-width:1100px){.chat-shell{grid-template-columns:235px minmax(0,1fr)}.chat-header{padding:16px}.chat-tools{gap:8px}.chat-request{flex-wrap:wrap}}@media(max-width:700px){.chat-shell{display:block;max-height:none;min-height:0;height:calc(100dvh - 225px);border-radius:15px}.chat-sidebar{height:100%;border:0}.chat-main{display:none;height:100%}.chat-open .chat-sidebar{display:none}.chat-open .chat-main{display:flex}.chat-back{display:block;font-size:30px;width:18px}.chat-header .chat-avatar{display:none}.chat-header h3{font-size:14px}.chat-messages{padding:18px 12px}.message-content{max-width:80%}.chat-composer{padding:12px}.chat-composer small{display:none}.chat-composer>div{justify-content:flex-end}.chat-request{padding:12px}.chat-tools button{font-size:10px}.chat-composer .primary{padding:9px 15px}}
 </style>
 
+<style scoped>
+/* Keep the composer reachable when the keyboard leaves a short viewport. */
+.chat-header{flex-shrink:0}
+.chat-main{overflow-y:auto}
+@media(max-width:700px){.chat-shell{min-height:360px}}
+</style>
+
 <style scoped>.chat-attach-tools{display:flex;gap:15px;flex-wrap:wrap;margin-bottom:10px}.chat-attach-tools label{font-size:12px;color:#806e4b;cursor:pointer;margin:0}.chat-attach-tools input{position:absolute;width:1px;height:1px;opacity:0}.chat-pending{font-size:12px;background:#f4eddb;padding:8px;border-radius:8px;overflow-wrap:anywhere;margin-bottom:7px}.chat-pending button{font-size:12px;color:#8c674d}.chat-composer{flex-shrink:0}</style>

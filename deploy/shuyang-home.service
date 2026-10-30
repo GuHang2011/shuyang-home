@@ -8,7 +8,7 @@ User=shuyang
 Group=shuyang
 WorkingDirectory=/opt/shuyang-home
 EnvironmentFile=/etc/shuyang-home.env
-ExecStart=/usr/bin/java -jar /opt/shuyang-home/shuyang-home-1.0.0.jar --server.address=127.0.0.1
+ExecStart=/usr/bin/java -jar /opt/shuyang-home/shuyang-home.jar --server.address=127.0.0.1
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true

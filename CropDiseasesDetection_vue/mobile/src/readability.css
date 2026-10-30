@@ -1,0 +1,31 @@
+/* CSS-pixel type sizes remain legible on small phones; layout keeps uni-app rpx. */
+page{font-family:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif;font-size:16px;line-height:1.7}
+.page{font-family:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif;font-size:16px}
+.page button,.page uni-button,.page input,.page textarea{font-family:inherit;line-height:1.6}
+.page button,.page uni-button{font-size:15px;min-height:44px;overflow-wrap:anywhere}
+.page .intro,.page .safe-note,.page .meta,.page .field-label,.page .checkbox-row,.page .form-tip{font-size:14px;line-height:1.8;color:#5c6f75}
+.page .prose,.page .post-excerpt{font-size:16px;line-height:1.9;color:#4c626d}
+.page .title{font-size:27px;letter-spacing:0}.page .card-title{font-size:19px}.page .form-title{font-size:23px}
+.page .tag,.page .pill{font-size:13px;color:#705c35}.page .pill{min-height:44px;padding:12px 14px}
+.page input,.page textarea{font-size:16px;line-height:1.6}.page input{min-height:48px;height:48px;padding:10px 12px}
+.page textarea{min-height:120px;padding:12px}.page .field-label{display:block;margin-bottom:8px;color:#3d5663}
+.page .button-row{gap:10px}.page .button-row button,.page .button-row uni-button{flex:1 1 auto;margin-block:0;padding:10px 14px;min-height:44px;line-height:1.6}
+.page .panel,.page .form-page{padding:20px}.page .empty{font-size:15px;color:#5c6f75}
+.page .hero .muted{font-size:15px;color:#e0e8e8}.page .hero-mark{font-size:12px}.page .hero-title{font-size:32px}
+.page .shortcuts text,.page .home-chat-link>view:nth-child(2)>text{font-size:13px;color:#60716b}
+.page .shortcuts{grid-template-columns:1fr}.page .shortcuts button{padding:16px;font-size:16px}.page .shortcuts text{margin-top:4px}
+.page .welcome{font-family:inherit;font-size:20px}.page .notice-line{font-size:14px;color:#626244}
+.page .section-title{font-size:23px}.page .footer{font-size:13px;color:#677269}.page .text-button{font-size:15px;color:#36566a}
+.bottom-nav button,.bottom-nav uni-button{font-size:13px;color:#596e74;min-height:48px}.bottom-nav button.active,.bottom-nav uni-button.active{color:#294657}
+.page .member-welcome-copy{font-size:15px;color:#586d70}.page .member-welcome-note,.page .member-welcome-benefits,.page .member-welcome-eyebrow{font-size:13px;color:#66705e}
+.page .member-welcome-title{font-size:24px}.page .member-welcome-actions button{font-size:16px;white-space:normal}
+.page .error{font-size:14px;line-height:1.8;color:#913c29;background:#fff0e9}
+/* #ifdef H5 */
+.page uni-input,.page uni-textarea{box-sizing:border-box;width:100%;max-width:100%;min-width:0}
+.page uni-textarea textarea{box-sizing:border-box;max-width:100%}
+html{scroll-padding-top:60px;scroll-padding-bottom:calc(100px + env(safe-area-inset-bottom))}
+.page uni-button,.page uni-input,.page uni-textarea{scroll-margin-block:60px 100px}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}button,input,textarea{font-family:inherit}
+html,body,uni-app,uni-page,uni-page-head{font-family:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif}
+.uni-page-head__title{font-family:inherit;font-size:17px;font-weight:600}
+/* #endif */

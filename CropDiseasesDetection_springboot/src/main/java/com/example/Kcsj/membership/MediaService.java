@@ -31,9 +31,9 @@ public class MediaService {
         if(scope.equals("chat"))chatAccess(roomId,actor,true);else if(!scope.equals("forum")&&(scope.equals("product")?!auth.isAdmin(actor):!auth.isStaff(actor)))throw new ApiException(403,"仅管理人员可以上传展示图片");
         if(file.isEmpty()||file.getSize()>15*1024*1024)throw new ApiException(413,"附件须为1字节至15MB，图片最多8MB");
         auth.limit("upload:"+s(actor,"id"),40);
-        String name=(scope.equals("forum")&&!originalName.isEmpty()?originalName:Optional.ofNullable(file.getOriginalFilename()).orElse("附件")).replace('\\','/');name=name.substring(name.lastIndexOf('/')+1).replaceAll("[\\p{Cntrl}]","");if(name.length()>100)name=name.substring(name.length()-100);
+        String name=(!originalName.isEmpty()?originalName:Optional.ofNullable(file.getOriginalFilename()).orElse("附件")).replace('\\','/');name=name.substring(name.lastIndexOf('/')+1).replaceAll("[\\p{Cntrl}]","");if(name.length()>100)name=name.substring(name.length()-100);
         String ext=name.contains(".")?name.substring(name.lastIndexOf('.')+1).toLowerCase(Locale.ROOT):"";
-        byte[] bytes;String mime;boolean image=Arrays.asList("jpg","jpeg","png").contains(ext),audio=scope.equals("forum");
+        byte[] bytes;String mime;boolean image=Arrays.asList("jpg","jpeg","png").contains(ext),audio=scope.equals("forum")&&!image;
         try {
             bytes=file.getBytes();
             if(audio){
@@ -76,6 +76,15 @@ public class MediaService {
         if(!s(row,"ownerId").equals(s(actor,"id"))||!s(row,"scope").equals("forum")||!s(row,"type").equals("audio")||b(row,"linked"))throw new ApiException(403,"请选择本人上传且尚未发布的论坛语音");
         row.putAll(map("linked",true,"forumKind",kind,"forumId",recordId));store.save("attachment",row);return projection(row);
     }
+    public List<Map<String,Object>> bindForumPhotos(List<String> ids,String kind,String recordId,Map<String,Object> actor){
+        List<Map<String,Object>> photos=new ArrayList<>();
+        for(String id:ids){
+            Map<String,Object> row=store.get("attachment",id);
+            if(!s(row,"ownerId").equals(s(actor,"id"))||!s(row,"scope").equals("forum")||!s(row,"type").equals("image")||b(row,"linked"))throw new ApiException(403,"请选择本人上传且尚未发布的论坛照片");
+            row.putAll(map("linked",true,"forumKind",kind,"forumId",recordId));store.save("attachment",row);photos.add(projection(row));
+        }
+        return photos;
+    }
     private boolean forumVisible(Map<String,Object> row,Map<String,Object> actor,String board){
         return !s(row,"status").equals("deleted")&&!policy.hiddenAuthor(actor,s(row,"authorId"))&&(s(row,"status").equals("approved")||(actor!=null&&s(row,"authorId").equals(s(actor,"id")))||policy.moderates(actor,board));
     }
@@ -85,13 +94,13 @@ public class MediaService {
         Map<String,Object> row=store.get("attachment",id);String scope=s(row,"scope");
         if(scope.equals("forum")){
             if(!b(row,"linked")){
-                if(actor==null||!s(row,"ownerId").equals(s(actor,"id")))throw new ApiException(404,"语音尚未发布");
+                if(actor==null||!s(row,"ownerId").equals(s(actor,"id")))throw new ApiException(404,"附件尚未发布");
                 auth.member(actor);return row;
             }
             Map<String,Object> post=store.get(s(row,"forumKind"),s(row,"forumId"));
             Map<String,Object> topic=s(row,"forumKind").equals("forum_topic")?post:store.get("forum_topic",s(post,"topicId"));
             String board=s(topic,"category");
-            if(!policy.canRead(actor,board)||!forumVisible(topic,actor,board)||!forumVisible(post,actor,board))throw new ApiException(404,"语音不存在或尚未公开");
+            if(!policy.canRead(actor,board)||!forumVisible(topic,actor,board)||!forumVisible(post,actor,board))throw new ApiException(404,"附件不存在或尚未公开");
             return row;
         }
         if(scope.equals("chat")){chatAccess(s(row,"roomId"),actor,false);if(!s(row,"messageId").isEmpty()){if(b(store.get("chat_message",s(row,"messageId")),"recalled"))throw new ApiException(404,"附件已撤回");}else if(!s(row,"ownerId").equals(s(actor,"id")))throw new ApiException(403,"附件尚未发送");return row;}

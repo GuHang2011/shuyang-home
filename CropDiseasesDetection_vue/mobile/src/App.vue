@@ -18,3 +18,4 @@ onLaunch(() => {});
 .member-welcome-actions button{display:flex;align-items:center;justify-content:center;width:100%;min-height:92rpx;margin:0;padding:20rpx 10rpx;line-height:1.5;font-size:27rpx;white-space:nowrap;border-radius:18rpx}
 .member-welcome-note{font-size:21rpx;line-height:1.8;color:#8e9487;margin-top:28rpx}
 </style>
+<style src="./readability.css"></style>

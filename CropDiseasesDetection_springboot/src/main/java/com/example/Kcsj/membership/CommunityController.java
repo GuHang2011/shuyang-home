@@ -39,14 +39,21 @@ public class CommunityController {
         row.putAll(map("status",next,"reviewNote",text(input,"note",next.equals("approved")?0:2,300),"reviewedBy",s(actor,"id")));
         store.save(kind,row);auth.audit(actor,kind+"."+next,id);return ok(row);
     }
+    private List<String> photoIds(Map<String,Object> input){
+        Object value=input.get("photoIds");if(value==null)return Collections.emptyList();
+        if(!(value instanceof List)||((List<?>)value).size()>9)throw new ApiException(400,"每次最多上传9张照片");
+        List<String> ids=new ArrayList<>();
+        for(Object item:(List<?>)value){if(!(item instanceof String)||((String)item).isEmpty()||((String)item).length()>80||ids.contains(item))throw new ApiException(400,"照片列表无效或包含重复照片");ids.add((String)item);}
+        return ids;
+    }
     private Map<String,Object> topicView(Map<String,Object> topic,Map<String,Object> actor) {
         Map<String,Object> result=publicRow(topic,actor);result.put("canModerate",policy.moderates(actor,s(topic,"category")));
-        if(!s(topic,"forwardedTopicId").isEmpty()){Optional<Map<String,Object>> source=store.all("forum_topic").stream().filter(r->s(r,"id").equals(s(topic,"forwardedTopicId"))&&s(r,"status").equals("approved")&&policy.canRead(actor,s(r,"category"))&&!policy.hiddenAuthor(actor,s(r,"authorId"))).findFirst();result.put("forwarded",source.isPresent()?pick(source.get(),"id","title","content","authorName","audio"):map("unavailable",true));}
+        if(!s(topic,"forwardedTopicId").isEmpty()){Optional<Map<String,Object>> source=store.all("forum_topic").stream().filter(r->s(r,"id").equals(s(topic,"forwardedTopicId"))&&s(r,"status").equals("approved")&&policy.canRead(actor,s(r,"category"))&&!policy.hiddenAuthor(actor,s(r,"authorId"))).findFirst();result.put("forwarded",source.isPresent()?pick(source.get(),"id","title","content","authorName","audio","photos"):map("unavailable",true));}
         result.put("replyCount",store.all("forum_reply").stream().filter(r->s(r,"topicId").equals(s(topic,"id"))&&s(r,"status").equals("approved")).count());return result;
     }
     private Map<String,Object> replyView(Map<String,Object> reply,Map<String,Object> actor,Map<String,Object> topic){
         Map<String,Object> view=publicRow(reply,actor);view.put("canModerate",policy.moderates(actor,s(topic,"category")));view.put("category",s(topic,"category"));
-        if(!s(reply,"parentId").isEmpty()){Map<String,Object> parent=store.get("forum_reply",s(reply,"parentId"));view.put("quoted",s(parent,"status").equals("approved")&&!policy.hiddenAuthor(actor,s(parent,"authorId"))?pick(parent,"floor","content","authorName","audio"):map("unavailable",true));}return view;
+        if(!s(reply,"parentId").isEmpty()){Map<String,Object> parent=store.get("forum_reply",s(reply,"parentId"));view.put("quoted",s(parent,"status").equals("approved")&&!policy.hiddenAuthor(actor,s(parent,"authorId"))?pick(parent,"floor","content","authorName","audio","photos"):map("unavailable",true));}return view;
     }
     @GetMapping("/forum/topics") public Map<String,Object> topics(HttpServletRequest req) {
         Map<String,Object> actor=auth.optional(req);return ok(rows("forum_topic").stream().filter(x->s(x,"status").equals("approved")&&policy.canRead(actor,s(x,"category"))&&!policy.hiddenAuthor(actor,s(x,"authorId"))).map(x->topicView(x,actor)).collect(Collectors.toList()));
@@ -62,22 +69,24 @@ public class CommunityController {
     }
     @PostMapping("/forum/topics") public Map<String,Object> createTopic(@RequestBody Map<String,Object> input,HttpServletRequest req) {
         store.lockWrites();Map<String,Object> actor=approvedMember(req);auth.limit("forum:"+s(actor,"id"),20);Map<String,Object> topic=author(actor);
-        String audioId=text(input,"audioId",0,80);
-        topic.putAll(map("title",text(input,"title",2,80),"content",text(input,"content",audioId.isEmpty()?10:0,5000),"category",choice(input,"category","乡情闲聊","苏州生活","创业交流","家乡故事"),"locked",false));
+        String audioId=text(input,"audioId",0,80);List<String> photos=photoIds(input);
+        topic.putAll(map("title",text(input,"title",2,80),"content",text(input,"content",audioId.isEmpty()&&photos.isEmpty()?10:0,5000),"category",choice(input,"category","乡情闲聊","苏州生活","创业交流","家乡故事"),"locked",false));
         policy.participating(actor,s(topic,"category"),true);
         String forward=text(input,"forwardedTopicId",0,80);if(!forward.isEmpty()){Map<String,Object> source=store.get("forum_topic",forward);policy.participating(actor,s(source,"category"),false);if(!policy.canRead(actor,s(source,"category"))||!s(source,"status").equals("approved")||policy.hiddenAuthor(actor,s(source,"authorId")))throw new ApiException(404,"原帖不可转发");topic.put("forwardedTopicId",forward);}
         if(!audioId.isEmpty())topic.put("audio",media.bindForum(audioId,"forum_topic",s(topic,"id"),actor));
+        topic.put("photos",media.bindForumPhotos(photos,"forum_topic",s(topic,"id"),actor));
         store.save("forum_topic",topic);auth.audit(actor,"forum.create",s(topic,"id"));return ok(topic);
     }
     @PostMapping("/forum/topics/{id}/replies") public Map<String,Object> reply(@PathVariable String id,@RequestBody Map<String,Object> input,HttpServletRequest req) {
         store.lockWrites();Map<String,Object> actor=approvedMember(req),topic=store.get("forum_topic",id);
         if(!s(topic,"status").equals("approved")||b(topic,"locked"))throw new ApiException(409,"话题尚未公开或已关闭回复");
         policy.participating(actor,s(topic,"category"),true);if(policy.blocked(s(actor,"id"),s(topic,"authorId")))throw new ApiException(403,"拉黑后不能向对方的话题回复");
-        String audioId=text(input,"audioId",0,80);
-        auth.limit("reply:"+s(actor,"id"),30);Map<String,Object> reply=author(actor);reply.putAll(map("topicId",id,"content",text(input,"content",audioId.isEmpty()?2:0,2000)));
+        String audioId=text(input,"audioId",0,80);List<String> photos=photoIds(input);
+        auth.limit("reply:"+s(actor,"id"),30);Map<String,Object> reply=author(actor);reply.putAll(map("topicId",id,"content",text(input,"content",audioId.isEmpty()&&photos.isEmpty()?2:0,2000)));
         List<Map<String,Object>> history=store.all("forum_reply").stream().filter(r->s(r,"topicId").equals(id)).sorted(Comparator.comparing(r->s(r,"createdAt"))).collect(Collectors.toList());int floor=0;for(Map<String,Object> old:history){floor++;if(!old.containsKey("floor")){old.put("floor",floor);store.save("forum_reply",old);}}
         reply.put("floor",floor+1);String parent=text(input,"parentId",0,80);if(!parent.isEmpty()){Map<String,Object> quoted=store.get("forum_reply",parent);if(!s(quoted,"topicId").equals(id)||!s(quoted,"status").equals("approved")||policy.hiddenAuthor(actor,s(quoted,"authorId")))throw new ApiException(400,"引用的楼层已不可用");reply.put("parentId",parent);}
         if(!audioId.isEmpty())reply.put("audio",media.bindForum(audioId,"forum_reply",s(reply,"id"),actor));
+        reply.put("photos",media.bindForumPhotos(photos,"forum_reply",s(reply,"id"),actor));
         store.save("forum_reply",reply);auth.audit(actor,"forum.reply",s(reply,"id"));return ok(reply);
     }
     @PostMapping("/forum/topics/{id}/lock") public Map<String,Object> lock(@PathVariable String id,HttpServletRequest req) {

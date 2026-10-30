@@ -34,33 +34,35 @@ export function useChat(getUser: () => Row | null, api: Api, pageVisible: () => 
       messages.value = messages.value.map(row => recalled.has(row.id) ? { ...row, recalled: true, content: undefined, attachment: undefined } : row);
     } catch(e) { if (version === generation) error.value = (e as Error).message; } finally { if (version === generation) reading = false; }
   }
-  async function select(room: Row) { ++generation;reading = false;active.value = room;messages.value = [];draft.value = '';attachment.value = null;error.value = '';loading.value = true;sendId = '';try { await detail(room.id);await refresh(); }finally { loading.value = false; } }
+  async function select(room: Row) { const version = ++generation;reading = false;busy.value = false;active.value = room;messages.value = [];hasMore.value = false;draft.value = '';attachment.value = null;error.value = '';loading.value = true;sendId = '';try { await detail(room.id);if (version === generation) await refresh(); }finally { if (version === generation) loading.value = false; } }
   async function action(id: string, action: string) {
-    if (busy.value) return;busy.value = true;error.value = '';
-    try { await api('/chat/conversations/' + id + '/action', 'POST', { action });if (action === 'leave') { active.value = null;messages.value = []; }else if (action === 'join') { await select({ id }); }else if (active.value?.id === id) await detail(id);await refresh(); }
-    catch(e) { error.value = (e as Error).message; }finally { busy.value = false; }
+    if (busy.value) return;const version = generation;busy.value = true;error.value = '';
+    try { await api('/chat/conversations/' + id + '/action', 'POST', { action });if (version !== generation) return;if (action === 'leave' && active.value?.id === id) { active.value = null;messages.value = []; }else if (action === 'join') { await select({ id });return; }else if (active.value?.id === id) await detail(id);if (version === generation) await refresh(); }
+    catch(e) { if (version === generation) error.value = (e as Error).message; }finally { if (version === generation) busy.value = false; }
   }
   async function send() {
     if (busy.value || (!draft.value.trim() && !attachment.value) || !canSend.value || !active.value) return;
     const content = draft.value.trim(), attachmentId = attachment.value?.id || '', signature = content + '|' + attachmentId, id = active.value.id, version = generation;
     if (!sendId || signature !== sendContent) { sendId = requestId();sendContent = signature; }
     busy.value = true;error.value = '';
-    try { await api('/chat/conversations/' + id + '/messages', 'POST', { content, attachmentId, requestId: sendId });if (version !== generation) return;draft.value = '';attachment.value = null;sendId = '';await detail(id);await refresh(); }
-    catch(e) { if (version === generation) error.value = (e as Error).message; }finally { busy.value = false; }
+    try { await api('/chat/conversations/' + id + '/messages', 'POST', { content, attachmentId, requestId: sendId });if (version !== generation) return;if (draft.value.trim() === content) draft.value = '';if ((attachment.value?.id || '') === attachmentId) attachment.value = null;sendId = '';await detail(id);if (version === generation) await refresh(); }
+    catch(e) { if (version === generation) error.value = (e as Error).message; }finally { if (version === generation) busy.value = false; }
   }
-  async function recall(row: Row) { if (busy.value) return;busy.value = true;try { await api('/chat/messages/' + encodeURIComponent(row.id) + '/recall', 'POST');if (active.value) await detail(active.value.id);await refresh(); }catch(e) { error.value = (e as Error).message; }finally { busy.value = false; } }
+  async function recall(row: Row) { if (busy.value) return;const version = generation;busy.value = true;error.value = '';try { await api('/chat/messages/' + encodeURIComponent(row.id) + '/recall', 'POST');if (version !== generation) return;if (active.value) await detail(active.value.id);if (version === generation) await refresh(); }catch(e) { if (version === generation) error.value = (e as Error).message; }finally { if (version === generation) busy.value = false; } }
   async function loadPeople() { const version = generation;try { const data = await api('/members');if (version === generation) people.value = data.filter((p: Row) => p.id !== getUser()?.id); }catch(e) { if (version === generation) error.value = (e as Error).message; } }
-  async function create(kind: string, form: Row) { if (busy.value) return false;busy.value = true;error.value = '';try { const room = await api(kind === 'direct' ? '/chat/direct' : '/chat/groups', 'POST', form);await select(room);return true; }catch(e) { error.value = (e as Error).message;return false; }finally { busy.value = false; } }
-  function back() { ++generation;attachment.value = null;active.value = null;messages.value = [];error.value = ''; }
-  watch([() => getUser()?.id, () => getUser()?.status], () => { ++generation;rooms.value = [];groups.value = [];people.value = [];messages.value = [];active.value = null;draft.value = '';attachment.value = null;error.value = '';reading = false;refresh(); });
-  onMounted(() => { refresh();timer = setInterval(async () => { if (!isVisible() || getUser()?.status !== 'approved' || busy.value) return;await refresh();if (active.value && isVisible()) await detail(active.value.id); }, 4000); });
+  async function create(kind: string, form: Row) { if (busy.value) return false;const version = generation;busy.value = true;error.value = '';try { const room = await api(kind === 'direct' ? '/chat/direct' : '/chat/groups', 'POST', form);if (version !== generation) return false;const selectedVersion = generation + 1;await select(room);return generation === selectedVersion; }catch(e) { if (version === generation) error.value = (e as Error).message;return false; }finally { if (version === generation) busy.value = false; } }
+  function back() { ++generation;reading = false;busy.value = false;loading.value = false;hasMore.value = false;draft.value = '';sendId = '';attachment.value = null;active.value = null;messages.value = [];error.value = ''; }
+  watch([() => getUser()?.id, () => getUser()?.status], () => { back();rooms.value = [];groups.value = [];people.value = [];refresh(); }, { flush: 'sync' });
+  onMounted(() => { refresh();timer = setInterval(async () => { if (!isVisible() || getUser()?.status !== 'approved' || busy.value) return;const version = generation;await refresh();if (version === generation && active.value && isVisible()) await detail(active.value.id); }, 4000); });
   onUnmounted(() => { ++generation;clearInterval(timer); });
   return { attachment, rooms, groups, people, active, messages, draft, error, busy, loading, hasMore, canSend, refresh, select, detail, action, send, recall, loadPeople, create, back };
 }
-export function useChatUnread(getUser: () => Row | null, api: Api) {
+export function useChatUnread(getUser: () => Row | null, api: Api, pageVisible: () => boolean = () => true) {
   const unread = ref(0);let timer: ReturnType<typeof setInterval>, generation = 0;
-  async function refreshUnread() { const version = ++generation;if (getUser()?.status !== 'approved' || getUser()?.mustChangePassword) { unread.value = 0;return; }try { const data = await api('/chat/unread');if (version === generation) unread.value = data.count; }catch { if (version === generation) unread.value = 0; } }
-  watch([() => getUser()?.id, () => getUser()?.status, () => getUser()?.mustChangePassword], refreshUnread);
+  const isVisible = () => pageVisible() && (typeof document === 'undefined' || !document.hidden);
+  async function refreshUnread() { const version = ++generation;if (getUser()?.status !== 'approved' || getUser()?.mustChangePassword) { unread.value = 0;return; }if (!isVisible()) return;try { const data = await api('/chat/unread');if (version === generation) unread.value = data.count; }catch { /* Keep the last known count during temporary network failures. */ } }
+  watch([() => getUser()?.id, () => getUser()?.status, () => getUser()?.mustChangePassword], () => { unread.value = 0;refreshUnread(); }, { flush: 'sync' });
+  watch(pageVisible, visible => { if (visible) refreshUnread(); });
   onMounted(() => { refreshUnread();timer = setInterval(refreshUnread, 6000); });
   onUnmounted(() => { ++generation;clearInterval(timer); });
   return { unread, refreshUnread };

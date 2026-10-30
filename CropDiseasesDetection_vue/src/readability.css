@@ -1,0 +1,77 @@
+/* Readable Chinese UI across Windows, iOS and Android. Loaded after the visual theme. */
+:root{--muted:#5f7078;--font-ui:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC","Hiragino Sans GB",sans-serif}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%;scroll-padding-top:100px}
+body{font-family:var(--font-ui);font-size:16px;line-height:1.7}
+button,input,textarea,select{font:inherit;letter-spacing:normal}
+button{touch-action:manipulation}button:disabled{cursor:not-allowed}
+.brand strong,.brand-note strong,.welcome-note h3,.breadcrumb>span:first-child,.membership-card h2,.about-feature h2,.avatar,.eyebrow,.event-banner>span:not(.banner-state){font-family:var(--font-ui)}
+.brand strong{letter-spacing:1px}.brand small{font-size:12px;letter-spacing:0}
+.side-caption,.nav-group-label{font-size:12px;color:#726b59;letter-spacing:.5px}
+.nav-item{font-size:15px;min-height:46px}.account-button b{font-size:14px}.account-button small{font-size:12px;color:#65756f}
+.breadcrumb{font-size:14px}.top-actions{gap:16px}.top-actions>button{min-height:44px;min-width:44px}
+.topbar .primary.small{font-size:14px}.location{font-size:13px;color:#627168}
+.page-intro h1{font-size:30px;letter-spacing:0;font-weight:600;line-height:1.5}
+.page-intro p:not(.eyebrow){font-size:15px;line-height:1.8;color:#5f7078;max-width:none}
+.eyebrow,.page-intro .eyebrow,.services-heading .eyebrow,.section-heading .eyebrow{font-size:11px;letter-spacing:1px;color:#7b6949}
+.hero-copy>p{font-size:16px;line-height:1.9;color:#e0e8e8}.hero-label{font-size:13px;letter-spacing:.5px}
+.hero-foot{font-size:12px;color:#bed0d5;letter-spacing:0}.hero-actions{flex-wrap:wrap}
+.hero-actions .white-button,.hero-link{font-size:15px;min-height:46px}.hero-link{display:inline-flex;align-items:center}
+.hero h2{font-weight:600;letter-spacing:0}.hero-copy{width:72%}.hero-brand-art{right:-40px;opacity:.65}
+.primary,.outline,.text-button,.primary.small,.button-row>.primary,.button-row>.outline{font-size:15px;line-height:1.5;min-height:44px}
+.primary,.outline{display:inline-flex;justify-content:center;align-items:center;gap:8px}.text-button{padding:10px 4px}
+.button-row{align-items:center;gap:10px;row-gap:12px}.button-row>button{margin-block:0}
+.quick-grid b,.community-links>button b{font-size:16px;line-height:1.6}
+.quick-grid small,.community-links>button small{font-size:13px;line-height:1.7;color:#5f7070}
+.quick-grid>button,.community-links>button{min-width:0}.community-links>button>span{min-width:0}
+.prose,.excerpt{font-size:16px;line-height:1.9;color:#4c626d;overflow-wrap:anywhere}
+.meta,.tag,.chips button,.empty p,.welcome-note p,.record-row p,.status-note,.checkbox{font-size:14px;line-height:1.8}
+.meta,.empty p,.welcome-note p,.record-row p{color:#5e706e}.tag{color:#715a30}.chips button{min-height:44px;color:#5c6f73}
+.empty{font-size:15px;color:#5f7070}.empty h3{color:#354f5f}.form-tip{font-size:14px!important;color:#5f7070!important}
+.welcome-note h3{font-size:22px;font-weight:600}.services-heading>span,.impact-strip span,.content>footer{font-size:13px;color:#66715e}
+.member-welcome-copy{font-size:15px;color:#586d70}.member-welcome-benefits,.member-welcome-note{font-size:13px;color:#5e6d64}
+.member-welcome-eyebrow{font-size:13px;color:#7b6949}.member-welcome-actions>.primary,.member-welcome-actions>.outline{font-size:16px}
+input,select,textarea,.modal input:not([type=checkbox]),.modal textarea,.modal select,.search-box input{font-size:16px;line-height:1.6}
+input::placeholder,textarea::placeholder{color:#74828a;opacity:1}
+.modal form label:not(.checkbox){font-size:15px;color:#3d5663;line-height:1.6}
+.modal header{position:sticky;top:-32px;z-index:2;background:#fffefa;padding-block:12px;gap:12px}
+.close-button{min-width:44px;min-height:44px;flex-shrink:0;color:#405863;font-size:26px}
+.modal .primary{font-size:16px}.modal{overscroll-behavior:contain;scrollbar-gutter:stable}
+.page-alert,.form-error,.toast{font-size:15px;line-height:1.7}.form-error{color:#913c29;background:#fff0e9}
+.filterbar>input{min-height:46px;border:1px solid #d7d9d4;border-radius:10px;padding:10px 14px;background:#fffefa;max-width:100%}
+.content .panel label,.content .album-form label{font-size:15px;color:#3d5663}
+.content form:not(.chat-composer) label:not(.checkbox):not(.upload-label):not(.scan-file){display:flex;flex-direction:column;align-items:stretch;gap:8px;margin:18px 0;line-height:1.7}
+.content form:not(.chat-composer) input:not([type=file]):not([type=checkbox]):not([type=radio]),.content form:not(.chat-composer) select,.content form:not(.chat-composer) textarea{display:block;width:100%;min-width:0;min-height:48px;padding:11px 13px;border:1px solid #d8d9d0;border-radius:10px;background:#fffdf8;color:#294657;font:inherit;font-size:16px;line-height:1.6;box-sizing:border-box;outline:none}
+.content form:not(.chat-composer) textarea{min-height:144px;resize:vertical}
+.content form input:focus-visible,.content form select:focus-visible,.content form textarea:focus-visible{border-color:#9c864f;box-shadow:0 0 0 3px #b8a16d22;outline:2px solid transparent}
+.content form .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 18px}
+.content .audio-field input[type=file]{font-size:14px;width:100%;padding:12px;border:1px solid #e0d9ca;border-radius:10px;background:#f8f4ea;line-height:1.7}
+.content .audio-field input::file-selector-button{border:1px solid #d4c9b3;border-radius:7px;background:#fffdf8;color:#36566a;padding:10px 12px;font:inherit;margin-right:12px;cursor:pointer}
+.content .module-heading p,.content .forum-heading p{font-size:15px;color:#5f7078}
+.content .topic-row>p{font-size:16px;color:#4c626d}.content .floor-head span,.content .floor-head small{font-size:13px;color:#5f7070}
+.content .source-album p,.content .source-album small{font-size:14px}.content .source-album h3{color:#fff9ed}
+.content .album-card small,.content .album-card p,.content .album-card span{font-size:14px;color:#6b6659}
+.content .weather-card .weather-eyebrow,.content .weather-card footer,.content .weather-card .weather-updated{font-size:12px;color:#756344}
+.content .weather-card .weather-now p,.content .weather-card .weather-tip{font-size:14px;color:#62563f}
+.content .weather-days span,.content .weather-days small,.content .weather-location p,.content .city-result small{font-size:13px;color:#756344}
+.content .weather-shortcuts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.content .weather-shortcuts button{white-space:nowrap;padding:10px 4px;font-size:13px}
+.content .weather-location input{font-size:16px}
+.content .weather-card button{font-size:14px;min-height:44px}
+@media(max-width:1100px){.hero-copy{width:72%}.home-feature-grid{grid-template-columns:1fr}.community-links{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:750px){.hero-copy{width:100%}.hero-brand-art{opacity:.13}.quick-grid{grid-template-columns:1fr}}
+@media(max-width:640px){
+  .content{padding:24px 16px calc(100px + env(safe-area-inset-bottom))}.topbar{padding:0 12px;height:68px}
+  .top-actions{gap:4px}.topbar .primary.small{font-size:13px;padding:10px}.top-actions .text-button{display:none}
+  .breadcrumb>span:first-child{font-size:21px;letter-spacing:0}.page-intro h1{font-size:26px}
+  .hero-copy{padding:26px 22px}.hero h2{font-size:32px}.hero-copy>p{font-size:15px}.hero-brand-art{display:none}.hero-label{font-size:12px}
+  .hero-actions{gap:10px}.hero-actions .white-button,.hero-link{font-size:14px}.hero-foot{font-size:12px}
+  .quick-grid{grid-template-columns:1fr}.quick-grid>button{padding:16px;flex-direction:row;align-items:center}
+  .community-links{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.community-links>button{display:block;padding:16px 12px}.community-links>button>.icon:first-child{display:block;margin-bottom:8px}
+  .community-links>button b{font-size:15px}.community-links>button small{font-size:13px;line-height:1.7}.community-links>button>.icon:last-child{display:none}
+  .chips{gap:6px}.chips button{font-size:14px;padding:10px 12px}.mobile-nav button{font-size:13px;color:#596e74;min-height:48px;gap:3px}
+  .mobile-nav{height:calc(76px + env(safe-area-inset-bottom));padding-top:8px}.mobile-nav button.active{color:#294657}
+  .modal-inner{padding:22px 18px}.modal header{top:-22px}.modal .form-grid{grid-template-columns:1fr}.panel,.post-card,.member-card{padding:20px}
+  .content form .form-grid{grid-template-columns:1fr;gap:0}
+  .modal{max-height:calc(100dvh - 28px);max-width:calc(100% - 20px)}.modal form label:not(.checkbox){font-size:15px}
+  .member-welcome-copy{font-size:15px}.member-welcome-benefits{font-size:13px;gap:12px}.member-welcome-actions>.primary,.member-welcome-actions>.outline{font-size:15px}
+}
+@media(max-width:360px){.community-links{grid-template-columns:1fr}.community-links>button{display:flex;align-items:center;gap:14px}.community-links>button>.icon:first-child{margin-bottom:0}.hero h2{font-size:29px}}

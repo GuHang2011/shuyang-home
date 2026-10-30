@@ -1,11 +1,14 @@
 ﻿param([switch]$Build, [switch]$InitializeAdmin)
 $ErrorActionPreference = 'Stop'
+$releaseVersion = (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'VERSION') -Raw -Encoding UTF8).Trim()
+if ($releaseVersion -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid VERSION file.' }
+$backendJar = "target\shuyang-home-$releaseVersion.jar"
 Set-Location -LiteralPath (Join-Path $PSScriptRoot 'CropDiseasesDetection_springboot')
 if (-not $env:JAVA_HOME) {
   $jdk = Get-ChildItem -Path 'C:\Program Files\Java' -Directory -Filter 'jdk*' -ErrorAction SilentlyContinue | Sort-Object Name -Descending | Select-Object -First 1
   if ($jdk) { $env:JAVA_HOME = $jdk.FullName }
 }
-if ($Build -or -not (Test-Path -LiteralPath 'target\shuyang-home-1.0.0.jar')) {
+if ($Build -or -not (Test-Path -LiteralPath $backendJar)) {
   $buildOptions = @('clean', 'package')
   $cachedRepository = Join-Path $PSScriptRoot '.cache\m2'
   $cachedTrust = Join-Path $PSScriptRoot '.cache\java-cacerts'
@@ -33,7 +36,7 @@ if (-not $env:SHUYANG_ADMIN_PASSWORD -and ($InitializeAdmin -or $newFileDatabase
   finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordPointer) }
 }
 try {
-  if ($env:JAVA_HOME) { & (Join-Path $env:JAVA_HOME 'bin\java.exe') -jar target\shuyang-home-1.0.0.jar }
-  else { & java -jar target\shuyang-home-1.0.0.jar }
+  if ($env:JAVA_HOME) { & (Join-Path $env:JAVA_HOME 'bin\java.exe') -jar $backendJar }
+  else { & java -jar $backendJar }
   if ($LASTEXITCODE -ne 0) { throw 'Backend stopped with an error. Check the startup log, data paths and keys.' }
 } finally { $env:SHUYANG_ADMIN_PASSWORD = $previousPassword }

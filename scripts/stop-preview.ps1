@@ -5,7 +5,7 @@ foreach($key in @('backendPid','webPid','mobilePid')) {
   $processId=[int]$config.$key
   $process=Get-CimInstance Win32_Process -Filter "ProcessId = $processId" -ErrorAction Stop
   if (-not $process) {continue}
-  $expected=if($key -eq 'backendPid'){'target/shuyang-home-1.0.0.jar'}elseif($key -eq 'webPid'){'node_modules/vite/bin/vite.js'}else{'node_modules/@dcloudio/vite-plugin-uni/bin/uni.js'}
+  $expected=if($key -eq 'backendPid'){if($config.backendJar){[string]$config.backendJar}else{'target/shuyang-home-1.0.0.jar'}}elseif($key -eq 'webPid'){'node_modules/vite/bin/vite.js'}else{'node_modules/@dcloudio/vite-plugin-uni/bin/uni.js'}
   if($process.CommandLine.Contains($expected)) {
     $handle=[Diagnostics.Process]::GetProcessById($processId)
     $handle.Kill()

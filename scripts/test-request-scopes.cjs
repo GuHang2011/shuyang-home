@@ -22,7 +22,7 @@ async function main(){
     tasks.push((async()=>{assert.equal(await album.save({title:'saved'}),true);assert.equal(album.selected.value.id,'saved');})());
     const person=vue.ref({id:'a',role:'member',status:'approved'}), order=deferred();
     const shop=load(path.join(root,'shared/useShop.ts')).useShop(()=>person.value,async(p,m)=>m==='POST'?order.promise:[]);
-    tasks.push((async()=>{shop.buy({id:'p'});const task=shop.submitOrder();person.value={id:'b',role:'member',status:'approved'};order.resolve({id:'private-order'});assert.equal(await task,false);assert.equal(shop.orders.value.length,0);assert.equal(shop.selected.value,null);assert.equal(shop.tab.value,'products');})());
+    tasks.push((async()=>{shop.buy({id:'p',stock:3,status:'published'});Object.assign(shop.orderForm.value,{name:'测试用户',phone:'13800008881',delivery:'pickup',consent:true});const task=shop.submitOrder();person.value={id:'b',role:'member',status:'approved'};order.resolve({id:'private-order'});assert.equal(await task,false);assert.equal(shop.orders.value.length,0);assert.equal(shop.selected.value,null);assert.equal(shop.tab.value,'products');})());
     const location=deferred(), sent=[];
     const check=load(path.join(root,'shared/checkin.ts')).useCheckin(()=>({id:'a',status:'approved'}),async(p,m)=>{if(m)sent.push(p);return p.endsWith('config')?{enabled:true}:[]},()=>location.promise);
     tasks.push((async()=>{await check.select({id:'event-a'},'code-a');const task=check.checkin();await check.select({id:'event-b'},'code-b');location.resolve({latitude:1,longitude:1});await task;assert.equal(sent.length,0);assert.equal(check.busy.value,false);})());

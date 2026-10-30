@@ -430,7 +430,7 @@ class MembershipTests {
     @Test void forumAudioRejectsInvalidFormatsOversizeAndWrongScope() throws Exception {
         String token=s(account(true),"token");
         upload(token,"forum","","fake.mp3","not an audio recording".getBytes(),400);
-        upload(token,"forum","","photo.png",testImage(),400);
+        assertEquals("image",s(data(upload(token,"forum","","photo.png",testImage(),200)),"type"));
         upload(token,"forum","","sound.wav",new byte[10*1024*1024+1],413);
         upload(s(account(false),"token"),"forum","","sound.wav",testAudio(),403);
         Map<String,Object> audio=data(upload(token,"forum","","sound.wav",testAudio(),200));assertEquals("audio",s(audio,"type"));assertEquals("audio/wav",s(audio,"mime"));
@@ -463,6 +463,56 @@ class MembershipTests {
         call("POST",path+"/review",admin,map("status","approved","note",""),200);mediaStatus(audio,null,200);
         call("POST",replyPath+"/delete",at,map("note","删除语音回复"),200);mediaStatus(audio,null,404);mediaStatus(audio,admin,404);
         assertFalse(json.writeValueAsString(call("GET",path,null,null,200)).contains(audio));
+    }
+    @Test void forumPhotosFollowReviewBlocksRestrictionsAndDeletion() throws Exception {
+        Map<String,Object> a=account(true),b=account(true);String at=s(a,"token"),bt=s(b,"token");
+        String photo=s(data(upload(at,"forum","","moment.png",testImage(),200)),"id");
+        mediaStatus(photo,null,404);mediaStatus(photo,bt,404);mediaStatus(photo,at,200);
+        Map<String,Object> topic=data(call("POST","/forum/topics",at,map("title","照片乡情分享","category","乡情闲聊","content","","photoIds",Arrays.asList(photo)),200));
+        String path="/forum/topics/"+s(topic,"id");assertEquals(1,((List<?>)topic.get("photos")).size());
+        mediaStatus(photo,null,404);mediaStatus(photo,bt,404);mediaStatus(photo,admin,200);
+        call("POST",path+"/review",admin,map("status","approved","note",""),200);mediaStatus(photo,null,200);
+        call("POST",path+"/review",admin,map("status","hidden","note","隐藏照片内容"),200);mediaStatus(photo,null,404);mediaStatus(photo,at,200);
+        call("POST",path+"/review",admin,map("status","approved","note",""),200);
+        call("POST","/forum/restrictions",admin,map("board","乡情闲聊","userId",s(b,"id"),"action","kick","reason","移出版块验收"),200);mediaStatus(photo,bt,404);
+        call("POST","/forum/restrictions",admin,map("board","乡情闲聊","userId",s(b,"id"),"action","restore","reason","恢复板块验收"),200);
+        call("POST","/members/"+s(a,"id")+"/block",bt,map("active",true),200);mediaStatus(photo,bt,404);
+        call("POST",path+"/delete",at,map("note","删除照片话题"),200);mediaStatus(photo,null,404);mediaStatus(photo,at,404);mediaStatus(photo,admin,404);
+        assertFalse(store.get("forum_topic",s(topic,"id")).containsKey("photos"));
+    }
+    @Test void forumPhotosRejectInvalidListsTheftReuseAndWrongAttachmentKinds() throws Exception {
+        String at=s(account(true),"token"),bt=s(account(true),"token");
+        String photo=s(data(upload(at,"forum","","moment.png",testImage(),200)),"id"), foreign=s(data(upload(bt,"forum","","other.png",testImage(),200)),"id");
+        Map<String,Object> body=map("title","验证照片权限","category","乡情闲聊","content","","photoIds",Arrays.asList(photo,foreign));
+        call("POST","/forum/topics",at,body,403);assertFalse(b(store.get("attachment",photo),"linked"));
+        body.put("photoIds",Arrays.asList(photo,photo));call("POST","/forum/topics",at,body,400);
+        body.put("photoIds",Collections.nCopies(10,photo));call("POST","/forum/topics",at,body,400);
+        body.put("photoIds",photo);call("POST","/forum/topics",at,body,400);
+        String audio=s(data(upload(at,"forum","","voice.wav",testAudio(),200)),"id");body.put("photoIds",Arrays.asList(audio));call("POST","/forum/topics",at,body,403);
+        body.put("photoIds",Collections.emptyList());body.put("audioId",photo);call("POST","/forum/topics",at,body,403);body.remove("audioId");
+        String album=s(data(upload(admin,"album","","album.png",testImage(),200)),"id");body.put("photoIds",Arrays.asList(album));call("POST","/forum/topics",admin,body,403);
+        body.put("photoIds",Arrays.asList(photo));call("POST","/forum/topics",at,body,200);call("POST","/forum/topics",at,body,403);
+        upload(at,"forum","","bad.png","not an image".getBytes(),400);upload(at,"forum","","large.jpg",new byte[8*1024*1024+1],413);
+        upload(s(account(false),"token"),"forum","","pending.png",testImage(),403);
+    }
+    @Test void replyPhotosAndForwardedPhotosRespectParentVisibility() throws Exception {
+        String at=s(account(true),"token"),bt=s(account(true),"token");Map<String,Object> parent=topic(bt);String path="/forum/topics/"+s(parent,"id");
+        call("POST",path+"/review",admin,map("status","approved","note",""),200);
+        String photo=s(data(upload(at,"forum","","reply.png",testImage(),200)),"id");
+        Map<String,Object> reply=data(call("POST",path+"/replies",at,map("content","","photoIds",Arrays.asList(photo)),200));String replyPath="/forum/replies/"+s(reply,"id");
+        mediaStatus(photo,null,404);call("POST",replyPath+"/review",admin,map("status","approved","note",""),200);mediaStatus(photo,null,200);
+        call("POST",path+"/review",admin,map("status","hidden","note","隐藏整条话题"),200);mediaStatus(photo,null,404);mediaStatus(photo,at,404);
+        call("POST",path+"/review",admin,map("status","approved","note",""),200);mediaStatus(photo,null,200);
+        call("POST",replyPath+"/delete",at,map("note","删除照片回复"),200);mediaStatus(photo,null,404);mediaStatus(photo,admin,404);
+        assertFalse(json.writeValueAsString(call("GET",path,null,null,200)).contains(photo));
+        String originalPhoto=s(data(upload(at,"forum","","original.png",testImage(),200)),"id");
+        Map<String,Object> original=data(call("POST","/forum/topics",at,map("title","分享家乡照片","category","乡情闲聊","content","","photoIds",Arrays.asList(originalPhoto)),200));
+        String originalPath="/forum/topics/"+s(original,"id");call("POST",originalPath+"/review",admin,map("status","approved","note",""),200);
+        Map<String,Object> forward=data(call("POST","/forum/topics",bt,map("title","转发家乡照片","category","乡情闲聊","content","这是一段关于家乡照片的转发说明","forwardedTopicId",s(original,"id")),200));
+        String forwardPath="/forum/topics/"+s(forward,"id");call("POST",forwardPath+"/review",admin,map("status","approved","note",""),200);
+        assertTrue(json.writeValueAsString(call("GET",forwardPath,null,null,200)).contains(originalPhoto));
+        call("POST",originalPath+"/review",admin,map("status","hidden","note","隐藏原帖照片"),200);
+        assertFalse(json.writeValueAsString(call("GET",forwardPath,null,null,200)).contains(originalPhoto));mediaStatus(originalPhoto,null,404);
     }
     @Test void noticesCanBeWithdrawnAndInputValidationReturnsClientErrors() throws Exception {
         Map<String,Object> person=account(true);call("POST","/notices",s(person,"token"),map(),403);
