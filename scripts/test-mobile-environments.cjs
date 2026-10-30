@@ -1,7 +1,7 @@
 // Contract tests for both uni-app targets and mobile lifecycle/network races.
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm');
 const assert = require('node:assert/strict');
-const root = path.resolve(__dirname, '../CropDiseasesDetection_vue');
+const root = path.resolve(__dirname, '../frontend');
 const ts = require(path.join(root, 'node_modules/typescript'));
 const vue = require(path.join(root, 'node_modules/vue'));
 const tests = [], test = (name, run) => tests.push({ name, run });

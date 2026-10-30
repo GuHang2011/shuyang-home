@@ -9,10 +9,10 @@ if ($Name -notmatch '^[a-z0-9][a-z0-9.-]*$') {throw 'Package name must contain l
 $folder=Join-Path $root ('release\'+$Name)
 if((Test-Path -LiteralPath $folder) -or (Test-Path -LiteralPath ($folder+'.zip'))){throw 'Package already exists; do not overwrite a released version.'}
 $sources=@{
- 'backend'="CropDiseasesDetection_springboot\target\shuyang-home-$releaseVersion.jar"
- 'web'='CropDiseasesDetection_vue\dist'
- 'mobile-h5'='CropDiseasesDetection_vue\mobile\dist\build\h5'
- 'wechat-dev-build'='CropDiseasesDetection_vue\mobile\dist\build\mp-weixin'
+ 'backend'="backend\target\shuyang-home-$releaseVersion.jar"
+ 'web'='frontend\dist'
+ 'mobile-h5'='frontend\mobile\dist\build\h5'
+ 'wechat-dev-build'='frontend\mobile\dist\build\mp-weixin'
  'docs'='docs'
  'config'='deploy'
 }

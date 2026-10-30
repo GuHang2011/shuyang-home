@@ -6,11 +6,11 @@
 
 `node scripts/test-request-scopes.cjs` 使用已有前端依赖运行5个异步响应场景。
 
-2026-10-30 三角色审查新增 `test-audit-regressions.cjs`，包含15个账号切换、旧响应、重复提交和订单校验场景。移动环境扩展新增 `test-mobile-environments.cjs` 的31个场景。在 `CropDiseasesDetection_vue` 运行 `npm run test:regression` 可统一执行63个逻辑场景（5个原有业务、12个天气、15个审查回归、31个移动环境）。`npm run test:mobile` 可单独运行移动环境逻辑测试，无需启动服务。
+2026-10-30 三角色审查新增 `test-audit-regressions.cjs`，包含15个账号切换、旧响应、重复提交和订单校验场景。移动环境扩展新增 `test-mobile-environments.cjs` 的31个场景。在 `frontend` 运行 `npm run test:regression` 可统一执行63个逻辑场景（5个原有业务、12个天气、15个审查回归、31个移动环境）。`npm run test:mobile` 可单独运行移动环境逻辑测试，无需启动服务。
 
 新增浏览器回归：`browser-audit-shop.js`（Web订单、异常恢复、键盘弹窗）、`browser-audit-mobile.js`（H5慢网络、订单校验与布局）、`browser-audit-navigation.js`（16个会员导航页面与聊天发送／撤回）。先按本文件步骤启动隔离预览并执行两份 community/phase2 数据准备脚本，分别打开 Web 或 H5 预览，再从前端目录使用 `playwright-cli run-code --filename=../scripts/文件名` 运行。新脚本沿用浏览器当前的本机来源，支持独立预览端口；仅对隔离测试数据运行。截图输出到 `output/playwright/audit-*`。
 
-`browser-*.js` 是 Playwright CLI 的 `run-code --filename` 输入，不是直接由node执行的文件。从 `CropDiseasesDetection_vue` 目录运行，截图写入根目录 `output/playwright`。脚本按阶段顺序操作同一预览，部分依赖前面流程的会员、会话和楼层状态；重复执行前检查前置状态。早期脚本保留作验收记录，二期主要使用 `browser-phase2-*`、`browser-final-management.js`、`browser-final-matrix.js`。
+`browser-*.js` 是 Playwright CLI 的 `run-code --filename` 输入，不是直接由node执行的文件。从 `frontend` 目录运行，截图写入根目录 `output/playwright`。脚本按阶段顺序操作同一预览，部分依赖前面流程的会员、会话和楼层状态；重复执行前检查前置状态。早期脚本保留作验收记录，二期主要使用 `browser-phase2-*`、`browser-final-management.js`、`browser-final-matrix.js`。
 
 ```powershell
 npx --yes --package @playwright/cli playwright-cli -s=shuyang open http://127.0.0.1:18888 --browser=msedge
@@ -29,7 +29,7 @@ npx --yes --package @playwright/cli playwright-cli -s=shuyang run-code --filenam
 
 先启动本文件开头的隔离内存预览，在**新预览**执行 `prepare-community-fixture.py` 和 `prepare-phase2-fixture.py`，准备测试会员、唯一的“验收特产 · 不销售”和已接受的聊天会话。不要对同一数据库重复造同名数据。两个浏览器脚本只接受本机H5的18890或28890端口；配对Web端口为H5端口减2。本次实测使用独立的28888／28890／29999预览。
 
-从 `CropDiseasesDetection_vue` 运行（标准隔离预览使用18890；本轮独立预览替换为28890）：
+从 `frontend` 运行（标准隔离预览使用18890；本轮独立预览替换为28890）：
 
 ```powershell
 New-Item -ItemType Directory -Force ../output/playwright, ../output/mobile-environments | Out-Null

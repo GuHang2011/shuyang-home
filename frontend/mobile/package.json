@@ -1,6 +1,6 @@
 {
   "name": "shuyang-home-mobile",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "scripts": {
     "dev:h5": "uni -p h5",

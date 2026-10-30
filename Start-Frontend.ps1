@@ -4,7 +4,7 @@ param(
   [int]$BackendPort = 9999
 )
 $ErrorActionPreference = 'Stop'
-Set-Location -LiteralPath (Join-Path $PSScriptRoot 'CropDiseasesDetection_vue')
+Set-Location -LiteralPath (Join-Path $PSScriptRoot 'frontend')
 if (-not (Test-Path -LiteralPath 'node_modules')) {
   & npm.cmd ci
   if ($LASTEXITCODE -ne 0) { throw 'Frontend dependencies could not be installed.' }

@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 $releaseVersion = (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'VERSION') -Raw -Encoding UTF8).Trim()
 if ($releaseVersion -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid VERSION file.' }
 $backendJar = "target\shuyang-home-$releaseVersion.jar"
-Set-Location -LiteralPath (Join-Path $PSScriptRoot 'CropDiseasesDetection_springboot')
+Set-Location -LiteralPath (Join-Path $PSScriptRoot 'backend')
 if (-not $env:JAVA_HOME) {
   $jdk = Get-ChildItem -Path 'C:\Program Files\Java' -Directory -Filter 'jdk*' -ErrorAction SilentlyContinue | Sort-Object Name -Descending | Select-Object -First 1
   if ($jdk) { $env:JAVA_HOME = $jdk.FullName }

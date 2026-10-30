@@ -1,6 +1,6 @@
 // Exercise search and location races with deferred responses, using the shared H5/Web logic.
 const fs = require('fs'), path = require('path'), vm = require('vm'), assert = require('node:assert/strict');
-const root = path.join(__dirname, '../CropDiseasesDetection_vue');
+const root = path.join(__dirname, '../frontend');
 const ts = require(path.join(root, 'node_modules/typescript')), vue = require(path.join(root, 'node_modules/vue'));
 const code = ts.transpileModule(fs.readFileSync(path.join(root, 'shared/weather.ts'), 'utf8'), {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;
 const exportsForTest = {}, unmount = [];
