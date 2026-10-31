@@ -30,18 +30,18 @@ button{touch-action:manipulation}button:disabled{cursor:not-allowed}
 .welcome-note h3{font-size:22px;font-weight:600}.services-heading>span,.impact-strip span,.content>footer{font-size:13px;color:#66715e}
 .member-welcome-copy{font-size:15px;color:#586d70}.member-welcome-benefits,.member-welcome-note{font-size:13px;color:#5e6d64}
 .member-welcome-eyebrow{font-size:13px;color:#7b6949}.member-welcome-actions>.primary,.member-welcome-actions>.outline{font-size:16px}
-input,select,textarea,.modal input:not([type=checkbox]),.modal textarea,.modal select,.search-box input{font-size:16px;line-height:1.6}
+input,select,textarea,.modal:not(.element-dialog) input:not([type=checkbox]),.modal:not(.element-dialog) textarea,.modal:not(.element-dialog) select,.search-box input{font-size:16px;line-height:1.6}
 input::placeholder,textarea::placeholder{color:#74828a;opacity:1}
-.modal form label:not(.checkbox){font-size:15px;color:#3d5663;line-height:1.6}
-.modal header{position:sticky;top:-32px;z-index:2;background:#fffefa;padding-block:12px;gap:12px}
+.modal:not(.element-dialog) form label:not(.checkbox){font-size:15px;color:#3d5663;line-height:1.6}
+.modal:not(.element-dialog) header{position:sticky;top:-32px;z-index:2;background:#fffefa;padding-block:12px;gap:12px}
 .close-button{min-width:44px;min-height:44px;flex-shrink:0;color:#405863;font-size:26px}
-.modal .primary{font-size:16px}.modal{overscroll-behavior:contain;scrollbar-gutter:stable}
+.modal:not(.element-dialog) .primary{font-size:16px}.modal{overscroll-behavior:contain;scrollbar-gutter:stable}
 .page-alert,.form-error,.toast{font-size:15px;line-height:1.7}.form-error{color:#913c29;background:#fff0e9}
 .filterbar>input{min-height:46px;border:1px solid #d7d9d4;border-radius:10px;padding:10px 14px;background:#fffefa;max-width:100%}
 .content .panel label,.content .album-form label{font-size:15px;color:#3d5663}
-.content form:not(.chat-composer) label:not(.checkbox):not(.upload-label):not(.scan-file){display:flex;flex-direction:column;align-items:stretch;gap:8px;margin:18px 0;line-height:1.7}
-.content form:not(.chat-composer) input:not([type=file]):not([type=checkbox]):not([type=radio]),.content form:not(.chat-composer) select,.content form:not(.chat-composer) textarea{display:block;width:100%;min-width:0;min-height:48px;padding:11px 13px;border:1px solid #d8d9d0;border-radius:10px;background:#fffdf8;color:#294657;font:inherit;font-size:16px;line-height:1.6;box-sizing:border-box;outline:none}
-.content form:not(.chat-composer) textarea{min-height:144px;resize:vertical}
+.content form:not(.chat-composer):not(.el-form) label:not(.checkbox):not(.upload-label):not(.scan-file){display:flex;flex-direction:column;align-items:stretch;gap:8px;margin:18px 0;line-height:1.7}
+.content form:not(.chat-composer):not(.el-form) input:not([type=file]):not([type=checkbox]):not([type=radio]),.content form:not(.chat-composer):not(.el-form) select,.content form:not(.chat-composer):not(.el-form) textarea{display:block;width:100%;min-width:0;min-height:48px;padding:11px 13px;border:1px solid #d8d9d0;border-radius:10px;background:#fffdf8;color:#294657;font:inherit;font-size:16px;line-height:1.6;box-sizing:border-box;outline:none}
+.content form:not(.chat-composer):not(.el-form) textarea{min-height:144px;resize:vertical}
 .content form input:focus-visible,.content form select:focus-visible,.content form textarea:focus-visible{border-color:#9c864f;box-shadow:0 0 0 3px #b8a16d22;outline:2px solid transparent}
 .content form .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 18px}
 .content .audio-field input[type=file]{font-size:14px;width:100%;padding:12px;border:1px solid #e0d9ca;border-radius:10px;background:#f8f4ea;line-height:1.7}
@@ -69,9 +69,9 @@ input::placeholder,textarea::placeholder{color:#74828a;opacity:1}
   .community-links>button b{font-size:15px}.community-links>button small{font-size:13px;line-height:1.7}.community-links>button>.icon:last-child{display:none}
   .chips{gap:6px}.chips button{font-size:14px;padding:10px 12px}.mobile-nav button{font-size:13px;color:#596e74;min-height:48px;gap:3px}
   .mobile-nav{height:calc(76px + env(safe-area-inset-bottom));padding-top:8px}.mobile-nav button.active{color:#294657}
-  .modal-inner{padding:22px 18px}.modal header{top:-22px}.modal .form-grid{grid-template-columns:1fr}.panel,.post-card,.member-card{padding:20px}
+  .modal-inner{padding:22px 18px}.modal:not(.element-dialog) header{top:-22px}.modal:not(.element-dialog) .form-grid{grid-template-columns:1fr}.panel,.post-card,.member-card{padding:20px}
   .content form .form-grid{grid-template-columns:1fr;gap:0}
-  .modal{max-height:calc(100dvh - 28px);max-width:calc(100% - 20px)}.modal form label:not(.checkbox){font-size:15px}
+  .modal{max-height:calc(100dvh - 28px);max-width:calc(100% - 20px)}.modal:not(.element-dialog) form label:not(.checkbox){font-size:15px}
   .member-welcome-copy{font-size:15px}.member-welcome-benefits{font-size:13px;gap:12px}.member-welcome-actions>.primary,.member-welcome-actions>.outline{font-size:15px}
 }
 @media(max-width:360px){.community-links{grid-template-columns:1fr}.community-links>button{display:flex;align-items:center;gap:14px}.community-links>button>.icon:first-child{margin-bottom:0}.hero h2{font-size:29px}}

@@ -64,3 +64,28 @@ python ../scripts/summarize-mobile-environments.py
 CLI即使脚本失败也可能返回退出码0，需以汇总脚本为结果门禁：缺失日志、脚本未完成、断言失败或页面异常均返回非零退出码。汇总兼容PowerShell的UTF-16日志，输出 `output/mobile-environments/*.json`；截图在 `output/playwright/mobile-env-*`。这些原始文件由Git忽略，验收结论和关键截图保存在 `docs/移动端多环境测试-2026-10-30.md` 及 `docs/screenshots/`。
 
 实际微信容器、iOS Safari、系统软键盘、刘海安全区、相机和GPS需要真机验证。微信UA、短视口和Windows WebKit仅用于模拟对应条件；微信小程序目前覆盖uni接口契约和构建，不代表已完成真机验收。
+
+
+## v1.5.0 文件与 Element 界面验收
+
+先完成三端依赖安装和当前版本后端打包，再启动独立内存预览。依次执行社区、第二阶段和业务文件数据准备脚本；同一预览实例只准备一次，重启实例后再重新准备。禁止对生产数据库执行。
+
+```powershell
+python scripts/prepare-community-fixture.py
+python scripts/prepare-phase2-fixture.py
+python scripts/prepare-business-files-fixture.py
+node scripts/test-business-files.cjs
+cd frontend
+npx.cmd --yes --package @playwright/cli playwright-cli -s=files-chromium open http://127.0.0.1:18888 --browser chrome
+npx.cmd --yes --package @playwright/cli playwright-cli -s=files-chromium run-code --filename=../scripts/browser-business-files.js > ../output/files-browser-chromium.log
+npx.cmd --yes --package @playwright/cli playwright-cli -s=files-chromium run-code --filename=../scripts/browser-element-ui.js > ../output/element-browser-chromium.log
+npx.cmd --yes --package @playwright/cli playwright-cli -s=files-webkit open http://127.0.0.1:18888 --browser webkit
+npx.cmd --yes --package @playwright/cli playwright-cli -s=files-webkit run-code --filename=../scripts/browser-business-files.js > ../output/files-browser-webkit.log
+npx.cmd --yes --package @playwright/cli playwright-cli -s=files-webkit run-code --filename=../scripts/browser-element-ui.js > ../output/element-browser-webkit.log
+cd ..
+python scripts/summarize-business-files.py
+```
+
+顺序运行浏览器脚本，避免同时修改同一合成会员。需安装对应 Playwright 浏览器；Chrome 可使用本机安装。从 frontend 目录创建专用浏览器会话并运行，截图及下载文件保存在工作区 output。汇总要求完整的 CLI Result、零失败和实际 Excel 行数；安装 pypdf 后另外验证 PDF 内包含全部 25 个订单号。未安装 pypdf 时明确报告 PDF 内容检查未执行。
+
+Element 界面每个内核 58 项，文件流程每个内核至少 48 项（首次导入与重复导入的检查数略有差异）；实际通过数从日志读取，不预填成功。浏览器模拟不能替代手机软键盘、微信容器和物理打印机真机验收。

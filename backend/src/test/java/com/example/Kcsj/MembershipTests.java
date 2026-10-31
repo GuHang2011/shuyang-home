@@ -53,6 +53,109 @@ class MembershipTests {
     Map<String,Object> event(int capacity,String category) throws Exception {
         return data(call("POST","/events",admin,map("title","测试乡情活动","category",category,"location","测试活动场地","startsAt",Instant.now().plusSeconds(7200).toString(),"endsAt",Instant.now().plusSeconds(14400).toString(),"capacity",capacity,"status","published","description","用于自动验收的测试活动，不是真实活动。"),200));
     }
+    Map<String,Object> businessFile(String kind,String event,List<List<String>> rows) {
+        List<String> headers=kind.equals("members")?Arrays.asList("会员编号","姓名","家乡","现居地","行业","个人简介"):kind.equals("signups")?Arrays.asList("会员编号","操作"):Arrays.asList("订单号","操作","履约说明");
+        Map<String,Object> file=new BusinessWorkbook().write("验收导入.xlsx",headers,rows);file.put("kind",kind);file.put("eventId",event);return file;
+    }
+    String memberNumber(Map<String,Object> member){return s(store.get("user",s(member,"id")),"memberNo");}
+    Map<String,Object> businessPreview(Map<String,Object> file) throws Exception{return data(call("POST","/data-files/preview",admin,file,200));}
+    Map<String,Object> businessCommit(Map<String,Object> preview,int status) throws Exception{return call("POST","/data-files/commit",admin,map("token",s(preview,"token"),"confirmed",true),status);}
+    @Test void businessFilesEnforceStaffRolesAndNeverExportCredentials() throws Exception {
+        Map<String,Object> a=account(true);String token=s(a,"token");
+        call("GET","/data-files/options",null,null,401);call("GET","/data-files/report?kind=members",token,null,403);
+        Map<String,Object> user=store.get("user",s(a,"id"));user.put("role","organizer");store.save("user",user);
+        Map<String,Object> options=data(call("GET","/data-files/options",token,null,200));assertEquals(1,((List<?>)options.get("kinds")).size());
+        call("GET","/data-files/template?kind=members",token,null,403);call("GET","/data-files/export?kind=orders",token,null,403);
+        Map<String,Object> event=event(3,"公益志愿");call("GET","/data-files/report?kind=signups&eventId="+s(event,"id"),token,null,200);
+        account(true);String report=json.writeValueAsString(call("GET","/data-files/report?kind=members",admin,null,200));assertFalse(report.contains("passwordHash"));assertFalse(report.contains("consentVersion"));assertFalse(report.contains("TestMemberPassword"));
+    }
+    @Test void businessExportsAreFilteredTextWorkbooksWithExactMoney() throws Exception {
+        Map<String,Object> a=account(true);Map<String,Object> user=store.get("user",s(a,"id"));user.put("name","=SUM(1,2)");user.put("bio","<script>文本</script>");store.save("user",user);account(true);
+        Map<String,Object> report=data(call("GET","/data-files/report?kind=members&query=SUM",admin,null,200));assertEquals(1,report.get("total"));
+        Map<String,Object> exported=data(call("GET","/data-files/export?kind=members&query=SUM",admin,null,200));
+        try(org.apache.poi.xssf.usermodel.XSSFWorkbook book=new org.apache.poi.xssf.usermodel.XSSFWorkbook(new java.io.ByteArrayInputStream(Base64.getDecoder().decode(s(exported,"base64"))))){
+            assertEquals(1,book.getSheetAt(0).getLastRowNum());org.apache.poi.ss.usermodel.Row row=book.getSheetAt(0).getRow(1);
+            assertEquals(org.apache.poi.ss.usermodel.CellType.STRING,row.getCell(1).getCellType());assertEquals("=SUM(1,2)",row.getCell(1).getStringCellValue());assertEquals(s(a,"phone"),row.getCell(2).getStringCellValue());
+        }
+        Map<String,Object> p=product(2);call("POST","/orders",s(a,"token"),orderBody(s(p,"id"),UUID.randomUUID().toString()),200);
+        String orders=json.writeValueAsString(data(call("GET","/data-files/report?kind=orders",admin,null,200)));assertTrue(orders.contains("17.50"));assertFalse(orders.contains("fingerprint"));
+        call("GET","/data-files/report?kind=orders&status=approved",admin,null,400);
+    }
+    @Test void businessMemberImportPreviewsWithoutWritingThenCommitsIdempotently() throws Exception {
+        Map<String,Object> a=account(true),before=store.get("user",s(a,"id"));
+        Map<String,Object> preview=businessPreview(businessFile("members","",Arrays.asList(Arrays.asList(memberNumber(a),"新的姓名","沭阳城区","苏州园区","新行业",""))));
+        assertEquals(0,preview.get("invalid"));assertEquals(1,preview.get("changes"));assertEquals(before,store.get("user",s(a,"id")));
+        call("POST","/data-files/commit",admin,map("token",s(preview,"token"),"confirmed",false),400);
+        assertEquals(1,data(businessCommit(preview,200)).get("count"));Map<String,Object> after=store.get("user",s(a,"id"));
+        assertEquals("新的姓名",s(after,"name"));assertEquals("",s(after,"bio"));
+        for(String field:Arrays.asList("phone","username","role","passwordHash","status","directoryVisible","phoneVisible","volunteer"))assertEquals(before.get(field),after.get(field));
+        assertEquals(true,data(businessCommit(preview,200)).get("replayed"));assertEquals(1,store.all("audit").stream().filter(r->s(r,"action").equals("files.import-members")).count());
+        assertFalse(store.all("file_import").get(0).containsKey("lines"));
+    }
+    @Test void businessImportErrorsAreRowSpecificAndDoNotPartiallyWrite() throws Exception {
+        Map<String,Object> a=account(true);String number=memberNumber(a);
+        Map<String,Object> preview=businessPreview(businessFile("members","",Arrays.asList(Arrays.asList(number,"修改姓名","沭阳城区","苏州新区","",""),Arrays.asList(number,"重复姓名","沭阳城区","苏州新区","",""),Arrays.asList("MISSING","不存在人","沭阳城区","苏州新区","",""))));
+        assertEquals(2,preview.get("invalid"));assertEquals("",s(preview,"token"));assertEquals("测试老乡",s(store.get("user",s(a,"id")),"name"));assertTrue(json.writeValueAsString(preview).contains("编号重复"));assertTrue(store.all("file_import").isEmpty());
+    }
+    @Test void businessPreviewRejectsStaleStateForeignOwnerAndExpiredTokens() throws Exception {
+        Map<String,Object> a=account(true),file=businessFile("members","",Arrays.asList(Arrays.asList(memberNumber(a),"修改姓名","沭阳城区","苏州新区","",""))),preview=businessPreview(file);
+        Map<String,Object> owner=account(true),staff=store.get("user",s(owner,"id"));staff.put("role","admin");store.save("user",staff);
+        call("POST","/data-files/commit",s(owner,"token"),map("token",s(preview,"token"),"confirmed",true),403);
+        Map<String,Object> changed=store.get("user",s(a,"id"));changed.put("bio","会员自己新写的资料");store.save("user",changed);businessCommit(preview,409);assertEquals("测试老乡",s(store.get("user",s(a,"id")),"name"));
+        preview=businessPreview(file);Map<String,Object> job=store.get("file_import",s(preview,"token"));job.put("expiresAt",Instant.now().minusSeconds(1).toString());store.save("file_import",job);businessCommit(preview,409);
+    }
+    @Test void businessSignupImportHandlesNetCapacityAndCurrentMembership() throws Exception {
+        Map<String,Object> a=account(true),b=account(true),event=event(1,"乡情聚会");String eventId=s(event,"id"),path="/events/"+eventId;
+        call("POST",path+"/signup",s(a,"token"),null,200);
+        Map<String,Object> full=businessPreview(businessFile("signups",eventId,Arrays.asList(Arrays.asList(memberNumber(b),"报名"))));assertEquals(1,full.get("invalid"));
+        Map<String,Object> preview=businessPreview(businessFile("signups",eventId,Arrays.asList(Arrays.asList(memberNumber(b),"报名"),Arrays.asList(memberNumber(a),"取消报名"))));assertEquals(0,preview.get("invalid"));businessCommit(preview,200);
+        assertEquals("cancelled",s(store.get("signup",eventId+":"+s(a,"id")),"status"));assertEquals("registered",s(store.get("signup",eventId+":"+s(b,"id")),"status"));
+        Map<String,Object> same=businessPreview(businessFile("signups",eventId,Arrays.asList(Arrays.asList(memberNumber(b),"报名"))));assertEquals(0,same.get("changes"));
+        event.put("startsAt",Instant.now().minusSeconds(1).toString());store.save("event",event);assertEquals(1,businessPreview(businessFile("signups",eventId,Arrays.asList(Arrays.asList(memberNumber(a),"报名")))).get("invalid"));
+    }
+    @Test void businessSignupCommitRechecksCapacityAndEnabledAccounts() throws Exception {
+        Map<String,Object> a=account(true),b=account(true),event=event(1,"乡情聚会");String eventId=s(event,"id");
+        Map<String,Object> preview=businessPreview(businessFile("signups",eventId,Arrays.asList(Arrays.asList(memberNumber(a),"报名"))));
+        call("POST","/events/"+eventId+"/signup",s(b,"token"),null,200);businessCommit(preview,409);assertEquals(1,store.all("signup").size());
+        Map<String,Object> user=store.get("user",s(a,"id"));user.put("enabled",false);store.save("user",user);
+        assertEquals(1,businessPreview(businessFile("signups",eventId,Arrays.asList(Arrays.asList(memberNumber(a),"报名")))).get("invalid"));
+    }
+    @Test void businessOrdersImportRespectsDeliveryStateAndPreservesStockPayment() throws Exception {
+        Map<String,Object> a=account(true),p=product(3),order=data(call("POST","/orders",s(a,"token"),orderBody(s(p,"id"),UUID.randomUUID().toString()),200));String path="/orders/"+s(order,"id")+"/action";
+        Map<String,Object> file=businessFile("orders","",Arrays.asList(Arrays.asList(s(order,"orderNo"),"发货","测试物流单号12345")));assertEquals(1,businessPreview(file).get("invalid"));
+        call("POST",path,admin,map("action","confirm"),200);Map<String,Object> preview=businessPreview(file);businessCommit(preview,200);
+        Map<String,Object> after=store.get("order",s(order,"id"));assertEquals("shipped",s(after,"status"));assertEquals("unconfirmed",s(after,"settlement"));assertEquals(order.get("totalCents"),after.get("totalCents"));assertEquals(2,store.get("product",s(p,"id")).get("stock"));
+        assertEquals(0,businessPreview(file).get("changes"));assertEquals(1,businessPreview(businessFile("orders","",Arrays.asList(Arrays.asList(s(order,"orderNo"),"备妥自提","请到测试地点自提")))).get("invalid"));
+        Map<String,Object> body=orderBody(s(p,"id"),UUID.randomUUID().toString());body.put("delivery","pickup");body.put("address","");Map<String,Object> pickup=data(call("POST","/orders",s(a,"token"),body,200));call("POST","/orders/"+s(pickup,"id")+"/action",admin,map("action","confirm"),200);
+        businessCommit(businessPreview(businessFile("orders","",Arrays.asList(Arrays.asList(s(pickup,"orderNo"),"备妥自提","请到测试服务点自提")))),200);assertEquals("ready",s(store.get("order",s(pickup,"id")),"status"));
+    }
+    @Test void businessOrderCommitRejectsConcurrentChangesWithoutOverwriting() throws Exception {
+        Map<String,Object> a=account(true),p=product(2),order=data(call("POST","/orders",s(a,"token"),orderBody(s(p,"id"),UUID.randomUUID().toString()),200));String path="/orders/"+s(order,"id")+"/action";call("POST",path,admin,map("action","confirm"),200);
+        Map<String,Object> preview=businessPreview(businessFile("orders","",Arrays.asList(Arrays.asList(s(order,"orderNo"),"发货","测试物流单号12345"))));call("POST",path,admin,map("action","cancel"),200);businessCommit(preview,409);
+        assertEquals("cancelled",s(store.get("order",s(order,"id")),"status"));assertEquals(2,store.get("product",s(p,"id")).get("stock"));
+    }
+    @Test void businessMalformedWorkbooksAreRejectedBeforeAnyPreviewIsSaved() throws Exception {
+        Map<String,Object> file=map("kind","members","filename","wrong.xlsx","base64",Base64.getEncoder().encodeToString("invalid".getBytes()));call("POST","/data-files/preview",admin,file,400);
+        file.put("filename","wrong.xls");call("POST","/data-files/preview",admin,file,400);
+        file=new BusinessWorkbook().write("wrong.xlsx",Arrays.asList("手机号","权限"),Arrays.asList(Arrays.asList("13800000000","admin")));file.put("kind","members");call("POST","/data-files/preview",admin,file,400);
+        Map<String,Object> a=account(true);file=businessFile("members","",Collections.emptyList());call("POST","/data-files/preview",admin,file,400);
+        file=businessFile("members","",Arrays.asList(Arrays.asList(memberNumber(a),"测试姓名","沭阳城区","苏州新区","","")));
+        try(org.apache.poi.xssf.usermodel.XSSFWorkbook book=new org.apache.poi.xssf.usermodel.XSSFWorkbook(new java.io.ByteArrayInputStream(Base64.getDecoder().decode(s(file,"base64"))));java.io.ByteArrayOutputStream bytes=new java.io.ByteArrayOutputStream()){
+            book.getSheetAt(0).getRow(1).getCell(1).setCellFormula("SUM(1,2)");book.write(bytes);file.put("base64",Base64.getEncoder().encodeToString(bytes.toByteArray()));call("POST","/data-files/preview",admin,file,400);
+        }
+        assertTrue(store.all("file_import").isEmpty());
+    }
+    @Test void businessWorkbookSizeAndRowsAreBoundedAndTemplatesRoundTrip() throws Exception {
+        Map<String,Object> file=map("kind","members","filename","large.xlsx","base64",Base64.getEncoder().encodeToString(new byte[BusinessWorkbook.MAX_BYTES+1]));call("POST","/data-files/preview",admin,file,400);
+        List<List<String>> rows=new ArrayList<>();for(int i=0;i<501;i++)rows.add(Arrays.asList("SY"+i,"测试姓名","沭阳城区","苏州新区","",""));call("POST","/data-files/preview",admin,businessFile("members","",rows),400);
+        Map<String,Object> template=data(call("GET","/data-files/template?kind=orders",admin,null,200));
+        try(org.apache.poi.xssf.usermodel.XSSFWorkbook book=new org.apache.poi.xssf.usermodel.XSSFWorkbook(new java.io.ByteArrayInputStream(Base64.getDecoder().decode(s(template,"base64"))))){assertEquals("订单号",book.getSheetAt(0).getRow(0).getCell(0).getStringCellValue());assertEquals("@",book.getSheetAt(0).getColumnStyle(0).getDataFormatString());}
+    }
+    @Test void businessConcurrentImportCommitWritesExactlyOneBatch() throws Exception {
+        Map<String,Object> a=account(true),preview=businessPreview(businessFile("members","",Arrays.asList(Arrays.asList(memberNumber(a),"并发导入姓名","沭阳城区","苏州新区","",""))));
+        assertEquals(Arrays.asList(200,200),concurrentPosts("/data-files/commit",Arrays.asList(admin,admin),map("token",s(preview,"token"),"confirmed",true)));
+        assertEquals(1,store.all("audit").stream().filter(r->s(r,"action").equals("files.import-members")).count());
+    }
     @Test void railwayNoticesRequireSourcesAndRespectPublicationPermissions() throws Exception {
         Map<String,Object> notice=map("title","淮新高铁专题验收","content","仅用于测试专题发布与来源校验。","category","淮新高铁","status","published");
         call("POST","/notices",null,notice,401);

@@ -6,6 +6,7 @@ const apiProxyTarget = process.env.VITE_API_PROXY_TARGET?.trim() || 'http://127.
 
 export default defineConfig({
 	plugins: [vue()],
+	define: { __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false },
 	resolve: { alias: { '@': resolve(__dirname, 'src'), '/@': resolve(__dirname, 'src') } },
 	base: './',
 	server: {

@@ -39,3 +39,8 @@
 [手机首页](mobile-readable-home.png) · [电脑照片帖子](desktop-forum-photos.png) · [手机照片帖子](mobile-forum-photos.png) · [多照片上传预览](mobile-photo-upload.png)
 
 本组移动截图为390×900，图片为程序生成的山水示例，不是真实活动照片；会员和帖子为隔离验收数据。上传预览中的照片尚未提交。
+
+
+## v1.5.0 Element 界面
+
+新增电脑／手机工作台、登录校验与资料编辑截图，均为合成测试数据。详见[界面与验收](../Element界面与验收.md)。

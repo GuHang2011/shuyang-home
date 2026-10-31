@@ -49,6 +49,10 @@ with zipfile.ZipFile(folder / ('backend/shuyang-home-' + version + '.jar')) as j
         for sticker in stickers:
             assert re.fullmatch(r'[a-z0-9-]{1,40}', sticker), 'Invalid sticker id'
             assert jar.read('BOOT-INF/classes/stickers/' + sticker + '.png').startswith(b'\x89PNG\r\n\x1a\n'), sticker
+    if tuple(map(int, version.split('.'))) >= (1, 5, 0):
+        for required in ['BusinessFilesController', 'BusinessWorkbook']:
+            assert 'BOOT-INF/classes/com/example/Kcsj/membership/' + required + '.class' in classes
+        assert any(path.startswith('BOOT-INF/lib/poi-ooxml-') for path in classes), 'Missing XLSX runtime'
     assert not any('/erp/' in p or p.endswith('Tests.class') for p in classes), 'Old or test classes included'
     for path in classes:
         if path.startswith('BOOT-INF/classes/') and not path.endswith('/'):

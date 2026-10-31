@@ -2,8 +2,8 @@
   "name": "沭阳之家",
   "appid": "",
   "description": "乡情相聚，守望相助。沭阳之家会员与公益交流平台。",
-  "versionName": "1.4.0",
-  "versionCode": 1004000,
+  "versionName": "1.5.0",
+  "versionCode": 1005000,
   "transformPx": false,
   "vueVersion": "3",
   "uniStatistics": {
