@@ -16,8 +16,8 @@ import static com.example.Kcsj.membership.MemberData.*;
 public class ChatController {
     private final MemberStore store;
     private final MemberAuth auth;
-    private final MediaService media;private final ForumPolicy policy;
-    public ChatController(MemberStore store,MemberAuth auth,MediaService media,ForumPolicy policy){this.store=store;this.auth=auth;this.media=media;this.policy=policy;}
+    private final MediaService media;private final ForumPolicy policy;private final StickerCatalog stickers;
+    public ChatController(MemberStore store,MemberAuth auth,MediaService media,ForumPolicy policy,StickerCatalog stickers){this.store=store;this.auth=auth;this.media=media;this.policy=policy;this.stickers=stickers;}
     private Map<String,Object> ok(Object value){return map("code",0,"data",value);}
     private Map<String,Object> member(HttpServletRequest req){Map<String,Object> user=auth.require(req);auth.member(user);return user;}
     private long seq(Map<String,Object> row,String key){try{return Long.parseLong(s(row,key));}catch(Exception e){return 0;}}
@@ -32,7 +32,15 @@ public class ChatController {
         view.put("memberCount",memberships(s(room,"id")).size());
         long read=membership==null?0:seq(membership,"lastRead");view.put("lastRead",read);view.put("joined",membership!=null);
         view.put("unread",membership==null?0:all.stream().filter(m->seq(m,"sequence")>read&&!s(m,"senderId").equals(s(actor,"id"))).count());
-        if(membership!=null&&!all.isEmpty()){Map<String,Object> last=all.get(all.size()-1);String content=b(last,"recalled")?"一条消息已撤回":last.containsKey("attachment")?"[附件] "+s(last,"content"):s(last,"content");view.put("preview",content.substring(0,Math.min(content.length(),80)));}
+        if(membership!=null&&!all.isEmpty()){Map<String,Object> last=all.get(all.size()-1);String content=b(last,"recalled")?"一条消息已撤回":!s(last,"stickerId").isEmpty()?stickers.fallback(s(last,"stickerId")):last.containsKey("attachment")?"[附件] "+s(last,"content"):s(last,"content");view.put("preview",content.substring(0,Math.min(content.length(),80)));}
+        return view;
+    }
+    private Map<String,Object> messageView(Map<String,Object> row) {
+        Map<String,Object> view=pick(row,"id","roomId","sequence","senderId","senderName","content","attachment","createdAt","recalled");
+        if(!b(row,"recalled")&&!s(row,"stickerId").isEmpty()) {
+            view.put("sticker",stickers.require(s(row,"stickerId")));
+            if(s(row,"content").isEmpty()) { view.put("content",stickers.fallback(s(row,"stickerId")));view.put("stickerOnly",true); }
+        }
         return view;
     }
     @GetMapping("/conversations") public Map<String,Object> conversations(HttpServletRequest req){
@@ -57,24 +65,26 @@ public class ChatController {
     }
     @GetMapping("/conversations/{id}") public Map<String,Object> detail(@PathVariable String id,@RequestParam(defaultValue="0") long before,HttpServletRequest req){
         Map<String,Object> actor=member(req),membership=participation(id,actor),room=store.get("chat_room",id);List<Map<String,Object>> history=messages(id),all=history.stream().filter(m->before<=0||seq(m,"sequence")<before).collect(Collectors.toList());
-        int start=Math.max(0,all.size()-50);Map<String,Object> view=roomView(room,actor,membership);view.put("messages",all.subList(start,all.size()).stream().map(m->pick(m,"id","sequence","senderId","senderName","content","attachment","createdAt","recalled")).collect(Collectors.toList()));view.put("hasMore",start>0);
+        int start=Math.max(0,all.size()-50);Map<String,Object> view=roomView(room,actor,membership);view.put("messages",all.subList(start,all.size()).stream().map(this::messageView).collect(Collectors.toList()));view.put("hasMore",start>0);
         view.put("recalledIds",history.stream().filter(m->b(m,"recalled")).map(m->s(m,"id")).collect(Collectors.toList()));return ok(view);
     }
     @PostMapping("/conversations/{id}/messages") public Map<String,Object> send(@PathVariable String id,@RequestBody Map<String,Object> input,HttpServletRequest req){
         store.lockWrites();Map<String,Object> actor=member(req);participation(id,actor);Map<String,Object> room=store.get("chat_room",id);
         String requestId=text(input,"requestId",36,36);try{UUID.fromString(requestId);}catch(Exception e){throw new ApiException(400,"消息请求编号无效");}
-        String messageId=s(actor,"id")+":"+requestId,attachmentId=text(input,"attachmentId",0,80),content=text(input,"content",0,2000);
-        if(content.isEmpty()&&attachmentId.isEmpty())throw new ApiException(400,"请输入消息或选择附件");
+        String messageId=s(actor,"id")+":"+requestId,attachmentId=text(input,"attachmentId",0,80),content=text(input,"content",0,2000),stickerId=text(input,"stickerId",0,40);
+        if(!stickerId.isEmpty())stickers.require(stickerId);
+        if(!stickerId.isEmpty()&&!attachmentId.isEmpty())throw new ApiException(400,"表情和附件请分开发送");
+        if(content.isEmpty()&&attachmentId.isEmpty()&&stickerId.isEmpty())throw new ApiException(400,"请输入消息、选择表情或附件");
         Optional<Map<String,Object>> existing=store.all("chat_message").stream().filter(m->s(m,"id").equals(messageId)).findFirst();
-        if(existing.isPresent()){Map<String,Object> old=existing.get();if(!s(old,"roomId").equals(id)||!s(old,"attachmentId").equals(attachmentId)||(!b(old,"recalled")&&!s(old,"content").equals(content)))throw new ApiException(409,"同一请求不能用于不同消息");return ok(old);}
+        if(existing.isPresent()){Map<String,Object> old=existing.get();if(!s(old,"roomId").equals(id)||!s(old,"attachmentId").equals(attachmentId)||!s(old,"stickerId").equals(stickerId)||(!b(old,"recalled")&&!s(old,"content").equals(content)))throw new ApiException(409,"同一请求不能用于不同消息");return ok(messageView(old));}
         if(!s(room,"status").equals("active"))throw new ApiException(409,"会话当前不能发送消息");
         media.chatAccess(id,actor,true);
         if(s(room,"type").equals("direct")){Map<String,Object> target=store.get("user",peer(room,actor));if(!b(target,"enabled")||!s(target,"status").equals("approved"))throw new ApiException(409,"对方账号暂时无法接收消息");}
         auth.limit("chat-send:"+s(actor,"id"),120);long sequence=seq(room,"sequence")+1;
-        Map<String,Object> row=map("id",messageId,"roomId",id,"senderId",s(actor,"id"),"senderName",s(actor,"name"),"content",content,"attachmentId",attachmentId,"sequence",sequence,"createdAt",now(),"recalled",false);if(!attachmentId.isEmpty())row.put("attachment",media.bindChat(attachmentId,id,messageId,actor));store.save("chat_message",row);room.putAll(map("sequence",sequence,"updatedAt",now()));store.save("chat_room",room);return ok(row);
+        Map<String,Object> row=map("id",messageId,"roomId",id,"senderId",s(actor,"id"),"senderName",s(actor,"name"),"content",content,"attachmentId",attachmentId,"stickerId",stickerId,"sequence",sequence,"createdAt",now(),"recalled",false);if(!attachmentId.isEmpty())row.put("attachment",media.bindChat(attachmentId,id,messageId,actor));store.save("chat_message",row);room.putAll(map("sequence",sequence,"updatedAt",now()));store.save("chat_room",room);return ok(messageView(row));
     }
     @PostMapping("/conversations/{id}/read") public Map<String,Object> read(@PathVariable String id,@RequestBody Map<String,Object> input,HttpServletRequest req){store.lockWrites();Map<String,Object> actor=member(req),m=participation(id,actor),room=store.get("chat_room",id);long value=seq(input,"sequence");if(value<0||value>seq(room,"sequence"))throw new ApiException(400,"已读位置无效");m.put("lastRead",Math.max(seq(m,"lastRead"),value));store.save("chat_member",m);return ok(map("read",true));}
-    @PostMapping("/messages/{id}/recall") public Map<String,Object> recall(@PathVariable String id,HttpServletRequest req){store.lockWrites();Map<String,Object> actor=member(req),row=store.get("chat_message",id);participation(s(row,"roomId"),actor);if(!s(row,"senderId").equals(s(actor,"id")))throw new ApiException(403,"只能撤回自己的消息");if(b(row,"recalled"))return ok(row);if(Instant.parse(s(row,"createdAt")).plusSeconds(120).isBefore(Instant.now()))throw new ApiException(409,"仅可撤回两分钟内的消息");row.put("recalled",true);row.remove("content");row.remove("attachment");store.save("chat_message",row);return ok(row);}
+    @PostMapping("/messages/{id}/recall") public Map<String,Object> recall(@PathVariable String id,HttpServletRequest req){store.lockWrites();Map<String,Object> actor=member(req),row=store.get("chat_message",id);participation(s(row,"roomId"),actor);if(!s(row,"senderId").equals(s(actor,"id")))throw new ApiException(403,"只能撤回自己的消息");if(b(row,"recalled"))return ok(messageView(row));if(Instant.parse(s(row,"createdAt")).plusSeconds(120).isBefore(Instant.now()))throw new ApiException(409,"仅可撤回两分钟内的消息");row.put("recalled",true);row.remove("content");row.remove("attachment");store.save("chat_message",row);return ok(messageView(row));}
     @PostMapping("/conversations/{id}/action") public Map<String,Object> action(@PathVariable String id,@RequestBody Map<String,Object> input,HttpServletRequest req){
         store.lockWrites();Map<String,Object> actor=member(req),room=store.get("chat_room",id);String action=choice(input,"action","accept","reject","cancel","block","unblock","join","leave","close");
         if(s(room,"type").equals("group")){

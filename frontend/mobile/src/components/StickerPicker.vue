@@ -1,0 +1,10 @@
+<script setup lang="ts">
+import { api } from '../platform';
+import { useStickers, type Sticker } from '../../../shared/useStickers';
+import StickerImage from './StickerImage.vue';
+defineProps<{ disabled?: boolean }>();
+const emit = defineEmits<{ (event: 'choose', sticker: Sticker): void; (event: 'close'): void }>();
+const { packs, selected, items, loading, error, load } = useStickers(api);
+</script>
+<template><view class="sticker-picker"><view class="sticker-heading"><text>表情包</text><button aria-label="关闭表情面板" @click="emit('close')">收起</button></view><view class="sticker-tip">选中后点发送，可附一句话</view><view v-if="loading" class="sticker-tip">正在加载表情…</view><view v-if="error" class="sticker-tip">{{ error }}<button :disabled="loading" @click="load">重新加载</button></view><view class="sticker-tabs"><button v-for="pack in packs" :key="pack.id" :class="{ selected: selected === pack.id }" @click="selected = pack.id">{{ pack.name }}</button></view><view class="sticker-grid"><button v-for="item in items" :key="item.id" :aria-label="'选择表情：' + item.label" :disabled="disabled" @click="emit('choose', item)"><StickerImage :sticker="item"/><text>{{ item.label }}</text></button></view></view></template>
+<style scoped>.sticker-picker{background:#fffdf7;border-top:1px solid #ded9ca;padding:10px;max-height:32vh;overflow:auto;flex-shrink:0}.sticker-heading{display:flex;align-items:center;justify-content:space-between;font-size:15px;font-weight:600}.sticker-heading button,.sticker-tip button{margin:0;min-height:44px;padding:8px 12px;font-size:14px}.sticker-tip{font-size:12px;color:#65767b}.sticker-tabs{display:flex;gap:8px;margin:8px 0}.sticker-tabs button{margin:0;min-height:44px;padding:8px 12px;border-radius:10px;font-size:14px;background:#f0ecdf}.sticker-tabs .selected{background:#294657;color:#fff}.sticker-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.sticker-grid button{margin:0;min-width:0;display:flex;flex-direction:column;align-items:center;padding:4px;border-radius:10px;background:transparent;line-height:1.6}.sticker-grid text{font-size:12px;color:#526d76}</style>

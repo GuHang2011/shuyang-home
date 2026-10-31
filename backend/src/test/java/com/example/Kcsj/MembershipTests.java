@@ -331,6 +331,47 @@ class MembershipTests {
     }
     Map<String,Object> chatRequest(Map<String,Object> a,Map<String,Object> b) throws Exception {return data(call("POST","/chat/direct",s(a,"token"),map("recipientId",s(b,"id"),"content","老乡你好，想一起聊聊活动安排。"),200));}
     Map<String,Object> chatMessage(String path,String token,String content) throws Exception {return data(call("POST",path+"/messages",token,map("content",content,"requestId",UUID.randomUUID().toString()),200));}
+    @Test void bundledStickerPacksHaveValidImagesAndRejectUnknownArtwork() throws Exception {
+        List<Map<String,Object>> packs=list("/chat/sticker-packs",null);assertEquals(2,packs.size());Set<String> ids=new HashSet<>();
+        for(Map<String,Object> pack:packs)for(Object value:(List<?>)pack.get("stickers")) {
+            Map<String,Object> sticker=(Map<String,Object>)value;assertTrue(ids.add(s(sticker,"id")));assertFalse(s(sticker,"label").isEmpty());
+            byte[] png=mvc.perform(request(HttpMethod.GET,"/chat/stickers/"+s(sticker,"id")+".png")).andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
+            java.awt.image.BufferedImage image=javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(png));assertNotNull(image);assertEquals(320,image.getWidth());
+        }
+        assertEquals(12,ids.size());mvc.perform(request(HttpMethod.GET,"/chat/stickers/missing.png")).andExpect(status().isNotFound());
+    }
+    @Test void directStickersRespectConsentValidationAndRetryIdentity() throws Exception {
+        Map<String,Object> a=account(true),b=account(true),other=account(true),room=chatRequest(a,b);String path="/chat/conversations/"+s(room,"id"),at=s(a,"token"),bt=s(b,"token");
+        Map<String,Object> body=map("stickerId","hello","content","","requestId",UUID.randomUUID().toString());
+        call("POST",path+"/messages",at,body,409);call("POST",path+"/action",bt,map("action","accept"),200);
+        call("POST",path+"/messages",s(other,"token"),body,403);call("GET",path,admin,null,403);
+        assertEquals(Arrays.asList(200,200),concurrentPosts(path+"/messages",Arrays.asList(at,at),body));assertEquals(2,store.all("chat_message").size());
+        Map<String,Object> sent=data(call("POST",path+"/messages",at,body,200));assertEquals("[表情] 老乡好",s(sent,"content"));assertEquals(true,sent.get("stickerOnly"));assertEquals("hello",s((Map<String,Object>)sent.get("sticker"),"id"));
+        assertEquals("[表情] 老乡好",s(list("/chat/conversations",bt).get(0),"preview"));
+        body.put("stickerId","thanks");call("POST",path+"/messages",at,body,409);
+        call("POST",path+"/messages",at,map("stickerId","https://example.com/x","requestId",UUID.randomUUID().toString()),400);
+        call("POST",path+"/messages",at,map("stickerId","hello","attachmentId","attachment","requestId",UUID.randomUUID().toString()),400);
+        Map<String,Object> caption=data(call("POST",path+"/messages",bt,map("stickerId","thanks","content","一起参加活动吧","requestId",UUID.randomUUID().toString()),200));assertEquals("一起参加活动吧",s(caption,"content"));assertFalse(caption.containsKey("stickerOnly"));
+        call("POST",path+"/action",bt,map("action","block"),200);call("POST",path+"/messages",at,map("stickerId","hello","requestId",UUID.randomUUID().toString()),409);
+    }
+    @Test void recalledStickersDoNotReappearInHistoryPreviewOrRetries() throws Exception {
+        Map<String,Object> a=account(true),b=account(true),room=chatRequest(a,b);String path="/chat/conversations/"+s(room,"id"),at=s(a,"token"),bt=s(b,"token");call("POST",path+"/action",bt,map("action","accept"),200);
+        Map<String,Object> body=map("stickerId","hug","requestId",UUID.randomUUID().toString()),sent=data(call("POST",path+"/messages",at,body,200));
+        String recall="/chat/messages/"+s(sent,"id")+"/recall";call("POST",recall,bt,null,403);call("POST",recall,at,null,200);
+        Map<String,Object> retry=data(call("POST",path+"/messages",at,body,200));assertEquals(true,retry.get("recalled"));assertFalse(retry.containsKey("sticker"));assertFalse(retry.containsKey("content"));
+        assertEquals("一条消息已撤回",s(list("/chat/conversations",bt).get(0),"preview"));
+        assertFalse(json.writeValueAsString(data(call("GET",path,bt,null,200))).contains("抱抱"));
+        Map<String,Object> expired=store.get("chat_message",s(data(call("POST",path+"/messages",at,map("stickerId","care","requestId",UUID.randomUUID().toString()),200)),"id"));expired.put("createdAt",Instant.now().minusSeconds(121).toString());store.save("chat_message",expired);call("POST","/chat/messages/"+s(expired,"id")+"/recall",at,null,409);
+    }
+    @Test void groupStickersRemainPrivateAndCannotBeSentAfterLeavingOrClosure() throws Exception {
+        String token=s(account(true),"token");Map<String,Object> room=data(call("POST","/chat/groups",admin,map("title","表情测试群","description","隔离测试"),200));String path="/chat/conversations/"+s(room,"id");
+        call("POST",path+"/messages",admin,map("stickerId","meet","requestId",UUID.randomUUID().toString()),200);
+        assertFalse(json.writeValueAsString(list("/chat/groups",token)).contains("期待相聚"));call("GET",path,token,null,403);
+        call("POST",path+"/action",token,map("action","join"),200);assertTrue(json.writeValueAsString(data(call("GET",path,token,null,200))).contains("期待相聚"));
+        call("POST",path+"/messages",token,map("stickerId","great","requestId",UUID.randomUUID().toString()),200);call("POST",path+"/action",token,map("action","leave"),200);
+        call("POST",path+"/messages",token,map("stickerId","hello","requestId",UUID.randomUUID().toString()),403);call("GET",path,token,null,403);
+        call("POST",path+"/action",admin,map("action","close"),200);call("POST",path+"/messages",admin,map("stickerId","hello","requestId",UUID.randomUUID().toString()),409);
+    }
     @Test void privateChatRequiresAcceptanceAndNoAdministratorBypass() throws Exception {
         Map<String,Object> a=account(true),b=account(true),other=account(true),room=chatRequest(a,b);String path="/chat/conversations/"+s(room,"id"),at=s(a,"token"),bt=s(b,"token");
         assertEquals(s(room,"id"),s(chatRequest(a,b),"id"));assertEquals(0,list("/chat/conversations",s(other,"token")).size());call("GET",path,admin,null,403);call("GET",path,s(other,"token"),null,403);

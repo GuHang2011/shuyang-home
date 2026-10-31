@@ -1,0 +1,18 @@
+[
+  {"id":"hometown","name":"乡音问候","stickers":[
+    {"id":"hello","label":"老乡好"},
+    {"id":"welcome","label":"欢迎回家"},
+    {"id":"tea","label":"来喝茶"},
+    {"id":"thanks","label":"谢谢啦"},
+    {"id":"care","label":"辛苦了"},
+    {"id":"goodnight","label":"晚安"}
+  ]},
+  {"id":"reactions","name":"暖心回应","stickers":[
+    {"id":"received","label":"收到"},
+    {"id":"great","label":"真棒"},
+    {"id":"cheer","label":"加油呀"},
+    {"id":"happy","label":"哈哈哈"},
+    {"id":"hug","label":"抱抱"},
+    {"id":"meet","label":"期待相聚"}
+  ]}
+]

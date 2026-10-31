@@ -40,6 +40,15 @@ with zipfile.ZipFile(folder / ('backend/shuyang-home-' + version + '.jar')) as j
     classes = jar.namelist()
     for required in ['ChatController', 'WeatherController', 'WeatherService', 'MediaService', 'MediaController', 'GalleryController', 'ShopController', 'CheckinController', 'ForumPolicy', 'ForumModerationController']:
         assert 'BOOT-INF/classes/com/example/Kcsj/membership/' + required + '.class' in classes
+    if tuple(map(int, version.split('.'))) >= (1, 4, 0):
+        for required in ['StickerController', 'StickerCatalog']:
+            assert 'BOOT-INF/classes/com/example/Kcsj/membership/' + required + '.class' in classes
+        catalogue = json.loads(jar.read('BOOT-INF/classes/stickers/catalog.json'))
+        stickers = [item['id'] for pack in catalogue for item in pack['stickers']]
+        assert len(stickers) >= 12 and len(stickers) == len(set(stickers)), 'Incomplete sticker catalogue'
+        for sticker in stickers:
+            assert re.fullmatch(r'[a-z0-9-]{1,40}', sticker), 'Invalid sticker id'
+            assert jar.read('BOOT-INF/classes/stickers/' + sticker + '.png').startswith(b'\x89PNG\r\n\x1a\n'), sticker
     assert not any('/erp/' in p or p.endswith('Tests.class') for p in classes), 'Old or test classes included'
     for path in classes:
         if path.startswith('BOOT-INF/classes/') and not path.endswith('/'):

@@ -6,7 +6,13 @@
 
 `node scripts/test-request-scopes.cjs` 使用已有前端依赖运行5个异步响应场景。
 
-在 `frontend` 运行 `npm run test:regression` 统一执行146个逻辑场景：5个原有业务、12个天气、15个审查回归、31个移动环境、5个照片队列以及78个模块／功能设计回归。`npm run test:mobile` 和 `npm run test:modules` 可分别运行移动环境与本轮模块逻辑测试，无需启动服务。
+在 `frontend` 运行 `npm run test:regression` 统一执行160个逻辑场景：5个原有业务、12个天气、15个审查回归、31个移动环境、5个照片队列、78个模块／功能设计回归以及14个表情包场景。`npm run test:mobile`、`npm run test:modules` 和 `npm run test:stickers` 可分别运行对应测试，无需启动服务。
+
+## v1.4.0 聊天表情包回归
+
+`browser-chat-stickers.js` 在 Web18888 进入，使用 community/phase2 合成账号与会话，覆盖两端互发、附文字、撤回、失败重试和七种尺寸，共76项／内核。请使用专用 CLI 会话；脚本会关闭该会话其他页签，并清空两端登录存储。截图输出 `output/playwright/chat-stickers-*`。完整功能及限制见[表情包说明](../docs/聊天表情包.md)。
+
+在 Chromium 和 WebKit 分别执行该脚本，重定向到 `output/sticker-browser.log`、`output/sticker-webkit-browser.log`；再打开 H518890，分别执行下文的 `browser-mobile-environments.js`，日志保存为 `output/sticker-mobile-matrix.log`、`output/sticker-webkit-matrix.log`。在根目录运行 `python scripts/summarize-chat-stickers.py` 检查四份日志，必须全部通过。测试不连接正式环境，原始日志和缓存不提交。
 
 新增浏览器回归：`browser-audit-shop.js`（Web订单、异常恢复、键盘弹窗）、`browser-audit-mobile.js`（H5慢网络、订单校验与布局）、`browser-audit-navigation.js`（17个会员导航页面与聊天发送／撤回）。先按本文件步骤启动隔离预览并执行两份 community/phase2 数据准备脚本，分别打开 Web 或 H5 预览，再从前端目录使用 `playwright-cli run-code --filename=../scripts/文件名` 运行。新脚本沿用浏览器当前的本机来源，支持独立预览端口；仅对隔离测试数据运行。截图输出到 `output/playwright/audit-*`。
 
