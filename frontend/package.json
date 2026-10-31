@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "vite",
     "typecheck": "vue-tsc --noEmit",
-    "test:regression": "node ../scripts/test-request-scopes.cjs && node ../scripts/test-weather.cjs && node ../scripts/test-audit-regressions.cjs && npm run test:mobile",
+    "test:regression": "node ../scripts/test-request-scopes.cjs && node ../scripts/test-weather.cjs && node ../scripts/test-audit-regressions.cjs && npm run test:mobile && node ../scripts/test-photo-uploads.cjs && npm run test:modules",
+    "test:modules": "node ../scripts/test-module-regressions.cjs",
     "test:mobile": "node ../scripts/test-mobile-environments.cjs",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0"

@@ -14,9 +14,9 @@ async page => {
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
   const navigation = page.getByRole('navigation', { name: '主导航', exact: true });
   const buttons = await navigation.getByRole('button').allTextContents();
-  for (const name of buttons) {
+  for (const [index, name] of buttons.entries()) {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await navigation.getByRole('button', { name: name.trim(), exact: true }).click();
+    await navigation.getByRole('button').nth(index).click();
     await page.locator('.content[aria-busy="false"]').waitFor();
     await page.getByRole('heading', { level: 1 }).waitFor();
     if (await page.locator('.page-alert').count()) throw new Error(name + ': ' + await page.locator('.page-alert').innerText());

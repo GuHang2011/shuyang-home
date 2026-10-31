@@ -6,9 +6,21 @@
 
 `node scripts/test-request-scopes.cjs` 使用已有前端依赖运行5个异步响应场景。
 
-2026-10-30 三角色审查新增 `test-audit-regressions.cjs`，包含15个账号切换、旧响应、重复提交和订单校验场景。移动环境扩展新增 `test-mobile-environments.cjs` 的31个场景。在 `frontend` 运行 `npm run test:regression` 可统一执行63个逻辑场景（5个原有业务、12个天气、15个审查回归、31个移动环境）。`npm run test:mobile` 可单独运行移动环境逻辑测试，无需启动服务。
+在 `frontend` 运行 `npm run test:regression` 统一执行146个逻辑场景：5个原有业务、12个天气、15个审查回归、31个移动环境、5个照片队列以及78个模块／功能设计回归。`npm run test:mobile` 和 `npm run test:modules` 可分别运行移动环境与本轮模块逻辑测试，无需启动服务。
 
-新增浏览器回归：`browser-audit-shop.js`（Web订单、异常恢复、键盘弹窗）、`browser-audit-mobile.js`（H5慢网络、订单校验与布局）、`browser-audit-navigation.js`（16个会员导航页面与聊天发送／撤回）。先按本文件步骤启动隔离预览并执行两份 community/phase2 数据准备脚本，分别打开 Web 或 H5 预览，再从前端目录使用 `playwright-cli run-code --filename=../scripts/文件名` 运行。新脚本沿用浏览器当前的本机来源，支持独立预览端口；仅对隔离测试数据运行。截图输出到 `output/playwright/audit-*`。
+新增浏览器回归：`browser-audit-shop.js`（Web订单、异常恢复、键盘弹窗）、`browser-audit-mobile.js`（H5慢网络、订单校验与布局）、`browser-audit-navigation.js`（17个会员导航页面与聊天发送／撤回）。先按本文件步骤启动隔离预览并执行两份 community/phase2 数据准备脚本，分别打开 Web 或 H5 预览，再从前端目录使用 `playwright-cli run-code --filename=../scripts/文件名` 运行。新脚本沿用浏览器当前的本机来源，支持独立预览端口；仅对隔离测试数据运行。截图输出到 `output/playwright/audit-*`。
+
+## v1.3.0 全模块与功能设计回归
+
+`test-module-regressions.cjs` 通过Vue编译器加载真实组件和共享逻辑，覆盖六个业务组件及Web/H5顶层的身份隔离、卸载、重复提交、重试、详情竞争、确认框、表单保护、过期令牌公开浏览和活动筛选／报名时间边界，共78项。
+
+`browser-module-flows.js` 只能在标准隔离端口18888／18890／19999执行，需先运行community、phase2，以及 `browser-engagement.js`、`browser-support-mobile.js`、`browser-support-complete.js`。执行入口为Web18888，覆盖资源双方确认、互助审核与隐私、管理检索和日志、铁路发布撤下、双端活动筛选及六类模块重试，共21项。账号每15分钟限制10次登录，避免同时反复运行带登录的流程。
+
+`browser-photo-web.js` 默认使用 `prepare-photo-fixture.py` 的专用账号；要复用community验收环境，先在浏览器打开 `http://127.0.0.1:18888/?fixture=community`，并提供 `output/photo-fixtures` 的合成图片。不要在community环境再次运行会修改管理员密码的照片账号准备脚本。
+
+`browser-session-recovery.js` 要求同一浏览器的Web和H5均已登录，执行真实注销并复用已失效令牌，验证两端仍能公开浏览。应在其他依赖登录的用例之后运行。二维码验收 `browser-phase2-checkin.js` 则要求Web管理员、H5会员已报名且尚未签到，活动仍在签到时间窗口内。
+
+本轮日志统一重定向到 `output/module-audit/<名称>.log`，名称见 `summarize-module-audit.py` 的13项清单。在根目录运行 `python scripts/summarize-module-audit.py`，只在所有日志含成功JSON结果、无脚本错误或页面异常时通过。完整模块覆盖与真机限制见[全模块报告](../docs/全模块测试与优化-2026-10-31.md)。
 
 `browser-*.js` 是 Playwright CLI 的 `run-code --filename` 输入，不是直接由node执行的文件。从 `frontend` 目录运行，截图写入根目录 `output/playwright`。脚本按阶段顺序操作同一预览，部分依赖前面流程的会员、会话和楼层状态；重复执行前检查前置状态。早期脚本保留作验收记录，二期主要使用 `browser-phase2-*`、`browser-final-management.js`、`browser-final-matrix.js`。
 

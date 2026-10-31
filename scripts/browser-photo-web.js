@@ -1,4 +1,5 @@
 async page => {
+  const communityFixture = new URL(page.url()).searchParams.get('fixture') === 'community';
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   const title='照片验收 · 一起记录家乡 '+Date.now();
   async function login(username,password){
@@ -7,7 +8,7 @@ async page => {
     await page.getByLabel('手机号 / 管理员账号',{exact:true}).fill(username);await page.getByLabel('登录密码',{exact:true}).fill(password);
     await page.getByRole('button',{name:'登录，回家看看',exact:true}).click();await page.locator('dialog.modal').waitFor({state:'hidden'});
   }
-  await page.setViewportSize({width:1440,height:1000});await login('13800008885','PhotoPreviewMember2026');
+  await page.setViewportSize({width:1440,height:1000});await login(communityFixture ? '13800008881' : '13800008885',communityFixture ? 'CommunityMember2026' : 'PhotoPreviewMember2026');
   await page.getByRole('navigation',{name:'主导航'}).getByRole('button',{name:'老乡论坛',exact:true}).click();
   await page.getByRole('button',{name:'＋ 发起话题',exact:true}).click();await page.getByLabel('标题',{exact:true}).fill(title);
   const field=page.locator('.photo-field'),input=field.locator('input[multiple]'),submit=page.getByRole('button',{name:'提交审核',exact:true});
@@ -27,7 +28,7 @@ async page => {
   await submit.click();await page.getByText('已提交审核',{exact:true}).waitFor();await page.getByRole('button',{name:title,exact:true}).click();
   await page.waitForFunction(()=>document.querySelectorAll('.topic-detail .photo-grid img').length===2&&[...document.querySelectorAll('.topic-detail .photo-grid img')].every(i=>i.naturalWidth>0));
   await page.getByRole('button',{name:'查看照片 1',exact:true}).click();await page.locator('dialog.photo-dialog').waitFor({state:'visible'});await page.keyboard.press('Escape');await page.locator('dialog.photo-dialog').waitFor({state:'hidden'});
-  await login('admin','PhotoPreviewAdmin2026');await page.getByRole('navigation',{name:'主导航'}).getByRole('button',{name:'老乡论坛',exact:true}).click();await page.getByRole('button',{name:'版主管理',exact:true}).click();
+  await login('admin',communityFixture ? 'CommunityAdmin2026' : 'PhotoPreviewAdmin2026');await page.getByRole('navigation',{name:'主导航'}).getByRole('button',{name:'老乡论坛',exact:true}).click();await page.getByRole('button',{name:'版主管理',exact:true}).click();
   await page.locator('.moderation-row').filter({hasText:title}).getByRole('button',{name:'审核通过',exact:true}).click();await page.locator('.forum-overlay').getByRole('button',{name:'确认操作',exact:true}).click();await page.locator('.forum-overlay').waitFor({state:'hidden'});
   await page.getByRole('navigation',{name:'主导航'}).getByRole('button',{name:'相聚相册',exact:true}).click();await page.getByRole('button',{name:'新建相册',exact:true}).click();
   await page.getByLabel('相册名称',{exact:true}).fill('照片验收 · 家乡留影');await page.locator('.album-form select').selectOption('published');await page.getByRole('button',{name:'保存相册',exact:true}).click();
