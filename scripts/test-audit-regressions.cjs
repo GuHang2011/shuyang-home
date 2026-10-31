@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
-const root = path.resolve(__dirname, '../CropDiseasesDetection_vue');
+const root = path.resolve(__dirname, '../frontend');
 const ts = require(path.join(root, 'node_modules/typescript'));
 const vue = require(path.join(root, 'node_modules/vue'));
 const deferred = () => { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };

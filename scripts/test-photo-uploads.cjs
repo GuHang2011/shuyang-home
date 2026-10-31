@@ -1,5 +1,5 @@
 const fs=require('fs'),path=require('path'),vm=require('vm'),assert=require('node:assert/strict');
-const root=path.join(__dirname,'../CropDiseasesDetection_vue'),ts=require(path.join(root,'node_modules/typescript')),vue=require(path.join(root,'node_modules/vue'));
+const root=path.join(__dirname,'../frontend'),ts=require(path.join(root,'node_modules/typescript')),vue=require(path.join(root,'node_modules/vue'));
 const exportsObject={},unmount=[];
 vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root,'shared/usePhotoUpload.ts'),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,{exports:exportsObject,require:()=>({...vue,onUnmounted:fn=>unmount.push(fn)}),Error,Set});
 const {usePhotoUpload}=exportsObject,flush=async()=>{for(let i=0;i<12;i++)await Promise.resolve();},file=name=>({name,size:42,preview:name,source:name});

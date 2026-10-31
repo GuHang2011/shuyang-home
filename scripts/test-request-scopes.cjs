@@ -1,6 +1,6 @@
 // Deferred responses exercise account switches and navigation while requests are in flight.
 const fs = require('fs'), path = require('path'), assert = require('node:assert/strict'), vm = require('node:vm');
-const root = path.join(__dirname, '../CropDiseasesDetection_vue');
+const root = path.join(__dirname, '../frontend');
 const ts = require(path.join(root, 'node_modules/typescript'));
 const vue = require(path.join(root, 'node_modules/vue'));
 const cache = new Map();

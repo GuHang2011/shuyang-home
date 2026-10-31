@@ -6,9 +6,9 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGES = ['CropDiseasesDetection_vue', 'CropDiseasesDetection_vue/mobile']
-MANIFEST = 'CropDiseasesDetection_vue/mobile/src/manifest.json'
-POM = 'CropDiseasesDetection_springboot/pom.xml'
+PACKAGES = ['frontend', 'frontend/mobile']
+MANIFEST = 'frontend/mobile/src/manifest.json'
+POM = 'backend/pom.xml'
 POM_VERSION = r'(<artifactId>shuyang-home</artifactId>\s*<version>)([^<]+)(</version>)'
 
 

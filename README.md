@@ -44,12 +44,12 @@ powershell -ExecutionPolicy Bypass -File .\Start-Backend.ps1 -Build
 powershell -ExecutionPolicy Bypass -File .\Start-Frontend.ps1
 ```
 
-访问 `http://127.0.0.1:8888`，后端默认端口 `9999`。首次启动交互设置超级管理员 `admin` 的初始密码，首次登录强制改密；无内置通用管理员密码。默认数据库为 `CropDiseasesDetection_springboot/data/shuyang-home.mv.db`。
+访问 `http://127.0.0.1:8888`，后端默认端口 `9999`。首次启动交互设置超级管理员 `admin` 的初始密码，首次登录强制改密；无内置通用管理员密码。默认数据库为 `backend/data/shuyang-home.mv.db`。
 
 手机 H5 / 微信小程序：
 
 ```powershell
-cd CropDiseasesDetection_vue
+cd frontend
 npm ci
 cd mobile
 npm ci
@@ -65,15 +65,15 @@ npm run build:mp-weixin
 
 | 目录 | 职责 |
 | --- | --- |
-| `CropDiseasesDetection_springboot` | Java / Spring Boot / JDBC / H2 后端及集成测试 |
-| `CropDiseasesDetection_vue/src` | Vue 3 响应式网页、运营工作台 |
-| `CropDiseasesDetection_vue/mobile` | uni-app H5 与微信小程序 |
-| `CropDiseasesDetection_vue/shared` | 多端业务逻辑、权限状态、天气、扫码与文案 |
+| `backend` | Java / Spring Boot / JDBC / H2 后端及集成测试 |
+| `frontend/src` | Vue 3 响应式网页、运营工作台 |
+| `frontend/mobile` | uni-app H5 与微信小程序 |
+| `frontend/shared` | 多端业务逻辑、权限状态、天气、扫码与文案 |
 | `deploy` | Nginx、systemd 与环境变量模板 |
 | `docs` | 需求、部署、问题修复、验收和截图 |
 | `scripts` | 启动、隔离测试、构建打包与发布校验 |
 
-旧工程目录名暂时保留，以兼容既有构建路径。学生数据未迁移，旧源码、数据库、缓存、日志、依赖目录和本地打包产物不上传仓库。
+从 v1.2.1 起，前端统一放在 `frontend`，后端统一放在 `backend`；启动、测试和打包入口已同步更新。已有本地安装的路径迁移见[目录迁移说明](docs/目录迁移说明.md)。学生数据未迁移，旧源码、数据库、缓存、日志、依赖目录和本地打包产物不上传仓库。
 
 ## 验证结果
 
@@ -99,4 +99,4 @@ npm run build:mp-weixin
 - 小程序真实 AppID、微信平台配置、手机摄像头／键盘／前后台切换和真机定位验收仍待完成。
 - 用户提供的 Alltuu 活动相册访问返回 403，原照片未导入。目前提供原相册入口和本地上传功能。验收条纹图仅用于测试。
 - JSON 业务记录支持可选 AES 加密；附件存于数据库 BLOB，未由该字段加密机制覆盖，需通过主机与备份存储措施保护。
-- 保留上游前端 [MIT 许可证与原作者声明](CropDiseasesDetection_vue/LICENSE)。沭阳之家 Logo、介绍与活动照片不因仓库公开而获得额外的品牌或图片使用授权。
+- 保留上游前端 [MIT 许可证与原作者声明](frontend/LICENSE)。沭阳之家 Logo、介绍与活动照片不因仓库公开而获得额外的品牌或图片使用授权。

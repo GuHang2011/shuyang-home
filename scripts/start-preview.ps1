@@ -4,7 +4,7 @@ $root=(Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $releaseVersion=(Get-Content -LiteralPath (Join-Path $root 'VERSION') -Raw -Encoding UTF8).Trim()
 if ($releaseVersion -notmatch '^\d+\.\d+\.\d+$') {throw 'Invalid VERSION file.'}
 $backendJar="target/shuyang-home-$releaseVersion.jar"
-if (-not (Test-Path -LiteralPath (Join-Path $root ('CropDiseasesDetection_springboot/'+$backendJar)))) {throw 'Build the current backend version before starting the preview.'}
+if (-not (Test-Path -LiteralPath (Join-Path $root ('backend/'+$backendJar)))) {throw 'Build the current backend version before starting the preview.'}
 $work=Join-Path $root '.cache\membership-preview'
 New-Item -ItemType Directory -Path $work -Force | Out-Null
 foreach ($port in @($BackendPort,$WebPort,$MobilePort)) {
@@ -24,9 +24,9 @@ try {
   $env:SHUYANG_WEATHER_LOCAL_NETWORK='true'
   $java=if($env:JAVA_HOME){Join-Path $env:JAVA_HOME 'bin\java.exe'}else{(Get-Command java.exe).Source}
   $node=(Get-Command node.exe).Source
-  $backend=Start-Process -FilePath $java -ArgumentList @('-jar',$backendJar,'--server.address=127.0.0.1') -WorkingDirectory (Join-Path $root 'CropDiseasesDetection_springboot') -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $work 'backend.log') -RedirectStandardError (Join-Path $work 'backend-error.log')
-  $web=Start-Process -FilePath $node -ArgumentList @('node_modules/vite/bin/vite.js','--host','127.0.0.1','--port',"$WebPort",'--strictPort') -WorkingDirectory (Join-Path $root 'CropDiseasesDetection_vue') -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $work 'web.log') -RedirectStandardError (Join-Path $work 'web-error.log')
-  $mobile=Start-Process -FilePath $node -ArgumentList @('node_modules/@dcloudio/vite-plugin-uni/bin/uni.js','-p','h5','--host','127.0.0.1','--port',"$MobilePort",'--strictPort') -WorkingDirectory (Join-Path $root 'CropDiseasesDetection_vue\mobile') -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $work 'mobile.log') -RedirectStandardError (Join-Path $work 'mobile-error.log')
+  $backend=Start-Process -FilePath $java -ArgumentList @('-jar',$backendJar,'--server.address=127.0.0.1') -WorkingDirectory (Join-Path $root 'backend') -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $work 'backend.log') -RedirectStandardError (Join-Path $work 'backend-error.log')
+  $web=Start-Process -FilePath $node -ArgumentList @('node_modules/vite/bin/vite.js','--host','127.0.0.1','--port',"$WebPort",'--strictPort') -WorkingDirectory (Join-Path $root 'frontend') -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $work 'web.log') -RedirectStandardError (Join-Path $work 'web-error.log')
+  $mobile=Start-Process -FilePath $node -ArgumentList @('node_modules/@dcloudio/vite-plugin-uni/bin/uni.js','-p','h5','--host','127.0.0.1','--port',"$MobilePort",'--strictPort') -WorkingDirectory (Join-Path $root 'frontend\mobile') -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $work 'mobile.log') -RedirectStandardError (Join-Path $work 'mobile-error.log')
   @{backendPid=$backend.Id;webPid=$web.Id;mobilePid=$mobile.Id;backendJar=$backendJar;version=$releaseVersion;backend="http://127.0.0.1:$BackendPort";web="http://127.0.0.1:$WebPort";mobile="http://127.0.0.1:$MobilePort";username='admin';password=$password;database='isolated in-memory preview, not production'} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $work 'runtime.json') -Encoding UTF8
   Write-Output "Preview web: http://127.0.0.1:$WebPort"
   Write-Output "Preview mobile: http://127.0.0.1:$MobilePort"
