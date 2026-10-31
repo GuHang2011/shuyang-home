@@ -53,6 +53,27 @@ class MembershipTests {
     Map<String,Object> event(int capacity,String category) throws Exception {
         return data(call("POST","/events",admin,map("title","测试乡情活动","category",category,"location","测试活动场地","startsAt",Instant.now().plusSeconds(7200).toString(),"endsAt",Instant.now().plusSeconds(14400).toString(),"capacity",capacity,"status","published","description","用于自动验收的测试活动，不是真实活动。"),200));
     }
+    @Test void railwayNoticesRequireSourcesAndRespectPublicationPermissions() throws Exception {
+        Map<String,Object> notice=map("title","淮新高铁专题验收","content","仅用于测试专题发布与来源校验。","category","淮新高铁","status","published");
+        call("POST","/notices",null,notice,401);
+        call("POST","/notices",s(account(true),"token"),notice,403);
+        call("POST","/notices",admin,notice,400);
+        notice.putAll(map("sourceName","测试资料来源","sourceUrl","javascript:alert(1)","sourceDate","2026-10-30"));
+        call("POST","/notices",admin,notice,400);
+        notice.put("sourceUrl","https://www.ndrc.gov.cn/");notice.put("sourceDate","2026-02-30");
+        call("POST","/notices",admin,notice,400);
+        notice.put("sourceDate","2026-10-30");
+        Map<String,Object> saved=data(call("POST","/notices",admin,notice,200));String id=s(saved,"id");
+        assertEquals("https://www.ndrc.gov.cn/",s(saved,"sourceUrl"));
+        assertTrue(json.writeValueAsString(call("GET","/notices",null,null,200).get("data")).contains(id));
+        notice.put("status","withdrawn");call("PUT","/notices/"+id,admin,notice,200);
+        assertFalse(json.writeValueAsString(call("GET","/notices",null,null,200).get("data")).contains(id));
+        assertTrue(json.writeValueAsString(call("GET","/notices",admin,null,200).get("data")).contains(id));
+    }
+    @Test void railwayCommentaryCanBeOriginalWithoutAnExternalArticle() throws Exception {
+        Map<String,Object> saved=data(call("POST","/notices",admin,map("title","一凡解读测试","content","这是一条用于验收的个人观察，不是铁路建设消息。","category","一凡说高铁","status","published","sourceName","一凡说高铁","sourceDate","2026-10-30"),200));
+        assertEquals("一凡说高铁",s(saved,"category"));assertEquals("",s(saved,"sourceUrl"));
+    }
     @Test void newDatabaseHasNoFabricatedMembersOrActivities() throws Exception {
         Map<String,Object> stats=data(call("GET","/home",null,null,200));
         assertEquals(0,((Number)stats.get("members")).intValue());assertEquals(0,((Number)stats.get("events")).intValue());

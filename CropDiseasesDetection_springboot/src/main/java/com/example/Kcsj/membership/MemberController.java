@@ -216,7 +216,17 @@ public class MemberController {
     @PutMapping("/notices/{id}") public Map<String,Object> updateNotice(@PathVariable String id,@RequestBody Map<String,Object> input,HttpServletRequest req) {return saveNotice(id,input,req);}
     private Map<String,Object> saveNotice(String id,Map<String,Object> input,HttpServletRequest req) {
         store.lockWrites();Map<String,Object> actor=auth.staff(req),notice=id==null?map("id",id(),"createdAt",now()):store.get("notice",id);
-        notice.putAll(map("title",text(input,"title",2,80),"content",text(input,"content",5,5000),"category",choice(input,"category","平台公告","家乡文化"),"status",choice(input,"status","published","withdrawn"),"updatedAt",now()));
+        String category=choice(input,"category","平台公告","家乡文化","淮新高铁","一凡说高铁"), status=choice(input,"status","published","withdrawn");
+        boolean railway=category.equals("淮新高铁")||category.equals("一凡说高铁"), publishing=railway&&status.equals("published");
+        String sourceName=railway?text(input,"sourceName",publishing?1:0,100):"";
+        String sourceUrl=railway?text(input,"sourceUrl",publishing&&category.equals("淮新高铁")?1:0,1000):"";
+        String sourceDate=railway?text(input,"sourceDate",publishing?10:0,10):"";
+        if(!sourceUrl.isEmpty()) {
+            try { java.net.URI uri=new java.net.URI(sourceUrl);if(!Arrays.asList("https","http").contains(uri.getScheme())||uri.getHost()==null||uri.getUserInfo()!=null)throw new IllegalArgumentException(); }
+            catch(Exception e) {throw new ApiException(400,"原文链接必须是完整的 http 或 https 网址");}
+        }
+        if(!sourceDate.isEmpty()) {try {LocalDate.parse(sourceDate);}catch(Exception e){throw new ApiException(400,"请填写有效的来源日期");}}
+        notice.putAll(map("title",text(input,"title",2,80),"content",text(input,"content",5,5000),"category",category,"status",status,"sourceName",sourceName,"sourceUrl",sourceUrl,"sourceDate",sourceDate,"updatedAt",now()));
         store.save("notice",notice);auth.audit(actor,"notice.save",s(notice,"id"));return ok(notice);
     }
 }

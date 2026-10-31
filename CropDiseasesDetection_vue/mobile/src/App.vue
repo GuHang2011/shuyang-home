@@ -19,3 +19,4 @@ onLaunch(() => {});
 .member-welcome-note{font-size:21rpx;line-height:1.8;color:#8e9487;margin-top:28rpx}
 </style>
 <style src="./readability.css"></style>
+<style src="./ui-polish.css"></style>
