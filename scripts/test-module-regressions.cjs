@@ -138,4 +138,10 @@ test('events: homepage excludes ended/invalid entries and sorts without mutating
   const rows=[event('later',{startsAt:'2026-11-02T08:00:00Z',endsAt:'2026-11-02T10:00:00Z'}),event('soon'),event('old',{endsAt:'2026-10-31T08:00:00Z'}),event('bad',{endsAt:'invalid'})];
   assert.equal(eventExports.upcomingEvents(rows,now).map(r=>r.id).join(','),'soon,later');assert.equal(rows[0].id,'later');
 });
+
+test('management member search ignores copied spaces and identifier casing',async()=>{
+ const h=harness('src/App.vue',async()=>[]);
+ try{h.state.adminMembers.value=[{id:'a',name:'测试会员',phone:'13800008881',memberNo:'SYABC123',status:'approved',enabled:true}];h.state.memberQuery.value='  syabc123  ';assert.equal(h.state.filteredAdminMembers.value.length,1);h.state.memberQuery.value=' 测试会员 ';assert.equal(h.state.filteredAdminMembers.value.length,1);h.state.memberStatus.value='pending';assert.equal(h.state.filteredAdminMembers.value.length,0);}finally{h.unmount();}
+});
+
 (async()=>{const results=[];for(const {name,fn} of tests){try{await fn();results.push({name,status:'passed'});console.log('PASS:',name);}catch(e){results.push({name,status:'failed',error:e.message});console.error('FAIL:',name,e.message);}}const out=path.resolve(root,'../output/module-audit');fs.mkdirSync(out,{recursive:true});fs.writeFileSync(path.join(out,'regressions.json'),JSON.stringify(results,null,2));const failed=results.filter(r=>r.status==='failed').length;console.log(`${results.length-failed}/${results.length} module regressions passed`);process.exitCode=failed?1:0;})();

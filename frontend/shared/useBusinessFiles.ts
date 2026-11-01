@@ -55,8 +55,9 @@ export function useBusinessFiles(getUser: () => Row | null, api: Api, save: (fil
   async function chooseFile(read: () => Promise<WorkbookFile | null>) {
     if (!selection.value) return;
     await task(async current => {
-      preview.value = null;confirmed.value = false;filename.value = '';
-      const file = await read();if (!current() || !file) return;filename.value = file.filename;
+      // Cancelling or failing a local read must not discard the preceding valid batch.
+      const file = await read();if (!current() || !file) return;
+      preview.value = null;confirmed.value = false;filename.value = file.filename;
       const data = await api('/data-files/preview', 'POST', { kind: kind.value, eventId: eventId.value, ...file });
       if (current()) preview.value = data;
     });

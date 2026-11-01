@@ -52,3 +52,5 @@ workbook('signups','signups.xlsx',[[b['user']['memberNo'],'报名']])
 workbook('orders','orders.xlsx',[[orders[0]['orderNo'],'发货','测试物流单号，仅供验收12345'],[orders[1]['orderNo'],'备妥自提','测试服务点自提，仅供验收']])
 (out/'fixture.json').write_text(json.dumps({'eventId':event['id'],'eventTitle':event['title'],'orders':[row['orderNo'] for row in orders]},ensure_ascii=False,indent=2),encoding='utf-8')
 print('Created synthetic XLSX fixtures, one event and 25 non-payment orders in the isolated preview.')
+
+(out/'unsupported.csv').write_text('name\nsynthetic fixture only\n',encoding='utf-8')

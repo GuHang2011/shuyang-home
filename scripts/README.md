@@ -89,3 +89,15 @@ python scripts/summarize-business-files.py
 顺序运行浏览器脚本，避免同时修改同一合成会员。需安装对应 Playwright 浏览器；Chrome 可使用本机安装。从 frontend 目录创建专用浏览器会话并运行，截图及下载文件保存在工作区 output。汇总要求完整的 CLI Result、零失败和实际 Excel 行数；安装 pypdf 后另外验证 PDF 内包含全部 25 个订单号。未安装 pypdf 时明确报告 PDF 内容检查未执行。
 
 Element 界面每个内核 58 项，文件流程每个内核至少 48 项（首次导入与重复导入的检查数略有差异）；实际通过数从日志读取，不预填成功。浏览器模拟不能替代手机软键盘、微信容器和物理打印机真机验收。
+
+### v1.5.1 回归补充
+
+本轮新增取消／读取失败后保留导入预览、会员搜索忽略首尾空格与编号大小写的检查。当前界面脚本每内核60项，文件脚本至少50项；支持Web18888或28888，配对H5端口加2。文件数据准备脚本会生成用于验证错误格式的 `unsupported.csv`。
+
+为避免混用历史日志，将六份结果保存为 `output/<本轮前缀>-<element|files|mobile>-<chromium|webkit>.log`，其中mobile来自 `browser-mobile-environments.js`。从根目录执行：
+
+```powershell
+python scripts/summarize-business-files.py --run-prefix retest-20261102
+```
+
+汇总检查本轮界面、文件及7环境移动矩阵的完整结果、失败项、页面异常，并核对下载的Excel和打印PDF；详情见[问题与修复记录](../docs/回归测试与问题修复-20261102.md)。

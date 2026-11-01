@@ -1,11 +1,11 @@
 async page => {
-  if (new URL(page.url()).origin !== 'http://127.0.0.1:18888') throw Error('Use the isolated preview on Web18888 with community fixtures');
+  const base=new URL(page.url());if(!['127.0.0.1','localhost'].includes(base.hostname)||!['18888','28888'].includes(base.port))throw Error('Use an isolated Web preview with synthetic fixtures');const webOrigin=base.origin,mobileOrigin=webOrigin.replace(base.port,String(Number(base.port)+2));
   const engine=page.context().browser().browserType().name(), results=[], errors=[];
   const check=(name,ok)=>{results.push({name,passed:!!ok});if(!ok)throw Error(name);};
   const shot=async (name,p=page)=>p.screenshot({path:`../output/playwright/element-${engine}-${name}.png`,timeout:15000});
   const overflow=async p=>p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1);
   page.setDefaultTimeout(15000);page.on('pageerror',e=>errors.push(e.message+' after '+(results[results.length-1]?.name || 'startup')));
-  await page.setViewportSize({width:1440,height:1000});await page.goto('http://127.0.0.1:18888/#admin');await page.waitForLoadState('networkidle');
+  await page.setViewportSize({width:1440,height:1000});await page.goto(webOrigin+'/#admin');await page.waitForLoadState('networkidle');
   if(await page.getByRole('button',{name:'登录 / 加入',exact:true}).isVisible()){
     await page.getByRole('button',{name:'登录 / 加入',exact:true}).click();await page.getByLabel('手机号 / 管理员账号').fill('admin');await page.getByLabel('登录密码',{exact:true}).fill('CommunityAdmin2026');await page.getByRole('button',{name:'登录，回家看看',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
     await page.getByRole('navigation',{name:'主导航'}).getByRole('button',{name:'管理工作台',exact:true}).click();
@@ -16,6 +16,10 @@ async page => {
   await management.getByRole('textbox',{name:'搜索管理会员',exact:true}).fill('不存在的会员');await management.getByText('找到 0 个账号',{exact:true}).waitFor();
   check('empty search provides an explicit empty state',await management.locator('.el-table__empty-text').innerText()==='没有符合条件的会员，请调整筛选条件。');
   await management.getByRole('button',{name:'重置筛选',exact:true}).click();await management.locator('.el-table__body tbody tr').first().waitFor();
+  await management.getByRole('textbox',{name:'搜索管理会员',exact:true}).fill('  资源主人测试  ');await management.getByText('找到 1 个账号',{exact:true}).waitFor();check('copied member name tolerates surrounding spaces',true);
+  const memberNo=await management.locator('.el-table__body tbody tr').first().locator('td').first().locator('small').last().innerText();
+  await management.getByRole('textbox',{name:'搜索管理会员',exact:true}).fill('  '+memberNo.toLowerCase()+'  ');await management.getByText('找到 1 个账号',{exact:true}).waitFor();check('copied member number tolerates spaces and lower case',true);
+  await management.getByRole('button',{name:'重置筛选',exact:true}).click();
   await management.locator('.el-select:has(input[aria-label="会员状态筛选"])').click();await page.getByRole('option',{name:'已通过',exact:true}).click();
   check('member status select retains its selected label',await management.locator('.el-select').innerText()==='已通过');
   await management.getByRole('button',{name:'重置筛选',exact:true}).click();
@@ -34,7 +38,7 @@ async page => {
   }
   // A separate member page covers sign-in, privacy and profile editing without admin privileges.
   const member=await page.context().newPage();member.on('pageerror',e=>errors.push(e.message+' after '+(results[results.length-1]?.name || 'startup')));member.setDefaultTimeout(15000);
-  await member.setViewportSize({width:1440,height:1000});await member.goto('http://127.0.0.1:18888/#account');await member.waitForLoadState('networkidle');
+  await member.setViewportSize({width:1440,height:1000});await member.goto(webOrigin+'/#account');await member.waitForLoadState('networkidle');
   await member.getByRole('button',{name:'登录 / 加入',exact:true}).click();const modal=member.getByRole('dialog');
   await member.getByRole('button',{name:'登录，回家看看',exact:true}).click();await member.getByText('请填写账号',{exact:true}).waitFor();check('login shows field validation before submission',await member.getByText('请填写登录密码',{exact:true}).isVisible());
   for(const [width,height] of [[1440,1000],[390,844],[320,568],[844,390],[390,420]]){
@@ -60,7 +64,7 @@ async page => {
   await member.close();
 
   const registration=await page.context().newPage();registration.setDefaultTimeout(15000);registration.on('pageerror',e=>errors.push(e.message));
-  await registration.setViewportSize({width:390,height:844});await registration.goto('http://127.0.0.1:18888/#account');await registration.waitForLoadState('networkidle');
+  await registration.setViewportSize({width:390,height:844});await registration.goto(webOrigin+'/#account');await registration.waitForLoadState('networkidle');
   await registration.locator('.member-welcome').getByRole('button',{name:'申请入会',exact:true}).click();
   await registration.getByLabel('姓名 *',{exact:true}).fill('合成入会测试');await registration.getByLabel('手机号 *',{exact:true}).fill('13800008999');
   await registration.getByLabel('家乡乡镇 *',{exact:true}).fill('沭阳沭城');await registration.getByLabel('现居地区 *',{exact:true}).fill('苏州吴中');await registration.getByLabel('设置密码 *',{exact:true}).fill('RegistrationCheck2026');

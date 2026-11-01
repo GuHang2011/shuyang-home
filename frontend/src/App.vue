@@ -63,7 +63,10 @@ const { eventView, eventViews, filteredEvents, upcoming } = useEventDiscovery(()
 const filteredPosts = computed(() => posts.value.filter(p => (filter.value === '全部' || p.category === filter.value) && (p.title + p.content).includes(search.value)));
 const filteredMembers = computed(() => members.value.filter(m => [m.name, m.hometown, m.district, m.industry].join(' ').includes(search.value)));
 const memberQuery = ref(''), memberStatus = ref('全部');
-const filteredAdminMembers = computed(() => adminMembers.value.filter(m => (memberStatus.value === '全部' || (memberStatus.value === 'disabled' ? !m.enabled : m.status === memberStatus.value)) && [m.name, m.phone, m.memberNo, m.hometown, m.district, m.industry].join(' ').includes(memberQuery.value)));
+const filteredAdminMembers = computed(() => {
+  const query = memberQuery.value.trim().toLocaleLowerCase();
+  return adminMembers.value.filter(m => (memberStatus.value === '全部' || (memberStatus.value === 'disabled' ? !m.enabled : m.status === memberStatus.value)) && [m.name, m.phone, m.memberNo, m.hometown, m.district, m.industry].join(' ').toLocaleLowerCase().includes(query));
+});
 const pendingCount = computed(() => adminMembers.value.filter(m => m.status === 'pending').length + adminPosts.value.filter(p => p.status === 'pending').length);
 const hours = computed(() => signups.value.reduce((sum, s) => sum + Number(s.hours || 0), 0));
 const dialogTitle = computed(() => ({ memberDetail: '会员资料', login: '欢迎回家', register: '成为沭阳之家的一员', profile: '完善我的资料', password: '修改登录密码', event: form.value.id ? '编辑活动' : '发起一场相聚', eventDetail: '活动详情', post: '发布互助信息', postDetail: '互助详情', notice: form.value.id ? '编辑公告' : '发布公告', noticeDetail: '消息详情', participants: '报名与签到', reviewMember: '审核入会申请', reviewPost: '审核互助信息', access: '账号权限', reset: '重置账号密码', privacy: '隐私说明与参与约定', confirm: '请确认操作' }[modal.value] || '沭阳之家'));

@@ -1,12 +1,12 @@
 async page => {
-  if (new URL(page.url()).origin !== 'http://127.0.0.1:18888') throw new Error('Open isolated Web18888 first; prepare community, phase2 and business-files fixtures');
+  const base=new URL(page.url());if(!['127.0.0.1','localhost'].includes(base.hostname)||!['18888','28888'].includes(base.port))throw Error('Use an isolated Web preview with synthetic fixtures');const webOrigin=base.origin,mobileOrigin=webOrigin.replace(base.port,String(Number(base.port)+2));
   await page.unrouteAll();for(const other of page.context().pages())if(other!==page)await other.close();
   const engine=page.context().browser().browserType().name(),results=[],errors=[];
   const check=(name,ok)=>{results.push({name,passed:!!ok});if(!ok)throw Error(name);};
   page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(15000);await page.setViewportSize({width:1440,height:1000});
   // Capture the exact report passed to the browser print API, without opening an OS dialog.
   await page.context().addInitScript(()=>{window.__printed=[];window.print=()=>window.top.__printed.push(document.documentElement.outerHTML);});
-  await page.goto('http://127.0.0.1:18888');await page.waitForLoadState('networkidle');await page.getByRole('button',{name:/登录 \/ 加入|我的会员中心/}).waitFor();
+  await page.goto(webOrigin);await page.waitForLoadState('networkidle');await page.getByRole('button',{name:/登录 \/ 加入|我的会员中心/}).waitFor();
   if(await page.getByRole('button',{name:'登录 / 加入',exact:true}).count()){
   await page.getByRole('button',{name:'登录 / 加入',exact:true}).click();await page.getByLabel('手机号 / 管理员账号').fill('admin');await page.getByLabel('登录密码',{exact:true}).fill('CommunityAdmin2026');
   await page.getByRole('button',{name:'登录，回家看看',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});}
@@ -26,6 +26,10 @@ async page => {
   check('invalid workbook did not partially update report',!(await hub.locator('tbody').innerText()).includes('不得部分写入'));
   await input.setInputFiles('../output/business-files/members-web.xlsx');await hub.getByRole('button',{name:'确认导入 1 条',exact:true}).waitFor();
   check('preview requires confirmation',await hub.getByRole('button',{name:'确认导入 1 条',exact:true}).isDisabled());
+  await input.setInputFiles('../output/business-files/unsupported.csv');await hub.getByRole('alert').filter({hasText:'请选择 .xlsx 格式的 Excel 文件'}).waitFor();
+  check('unsupported replacement preserves the prepared workbook',await hub.locator('.filename').innerText()==='文件：members-web.xlsx'&&await hub.locator('.import-lines li').count()===1);
+  check('preserved preview still requires explicit confirmation',await hub.getByRole('button',{name:'确认导入 1 条',exact:true}).isDisabled());
+
   const tokens=[];let loseResponse=true;
   await page.route('**/data-files/commit',async route=>{tokens.push(route.request().postDataJSON().token);if(loseResponse){loseResponse=false;const response=await route.fetch();if(response.status()!==200)throw Error('Server did not commit fixture');return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({code:503,message:'模拟提交后网络中断，请重试'})});}return route.continue();});
   await hub.locator('.import-confirmation').click();await hub.getByRole('button',{name:'确认导入 1 条',exact:true}).click();
@@ -60,7 +64,7 @@ async page => {
   check('event roster contains both members',await hub.locator('tbody tr').count()===2);
   await download(page,hub.getByRole('button',{name:'导出 Excel',exact:true}),'signups-export');
   const mobile=await page.context().newPage();mobile.setDefaultTimeout(15000);mobile.on('pageerror',e=>errors.push(e.message));await mobile.setViewportSize({width:390,height:844});
-  await mobile.goto('http://127.0.0.1:18890');await mobile.evaluate(()=>localStorage.clear());await mobile.reload();await mobile.getByText('我的',{exact:true}).click();await mobile.getByText('登录账号',{exact:true}).click();
+  await mobile.goto(mobileOrigin);await mobile.evaluate(()=>localStorage.clear());await mobile.reload();await mobile.getByText('我的',{exact:true}).click();await mobile.getByText('登录账号',{exact:true}).click();
   await mobile.getByRole('textbox').nth(0).fill('admin');await mobile.getByRole('textbox').nth(1).fill('CommunityAdmin2026');await mobile.getByText('登录，回家看看',{exact:true}).click();await mobile.getByText('已通过 · 超级管理员',{exact:true}).waitFor();
   await mobile.getByText('文件与打印',{exact:true}).click();await mobile.locator('.report-title').first().waitFor();const mhub=mobile.locator('.business-files');
   check('H5 report displays existing member rows',await mhub.locator('.file-row:not(.heading)').count()===2);

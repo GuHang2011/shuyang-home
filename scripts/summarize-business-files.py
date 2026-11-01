@@ -1,16 +1,26 @@
 """Validate completed browser results, downloaded workbooks and the printed PDF."""
+import argparse
 import json
 import zipfile
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
 root = Path(__file__).resolve().parents[1]
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--run-prefix', help='Read <prefix>-files/element/mobile-<engine>.log from output instead of historical logs')
+args = parser.parse_args()
 checks = [
     ('files-browser-chromium.log', 'chromium', 48),
     ('files-browser-webkit.log', 'webkit', 48),
     ('element-browser-chromium.log', 'chromium', 58),
     ('element-browser-webkit.log', 'webkit', 58),
 ]
+if args.run_prefix:
+    if Path(args.run_prefix).name != args.run_prefix or '/' in args.run_prefix or '\\' in args.run_prefix:
+        parser.error('--run-prefix must be a filename prefix, not a path')
+    checks = [(f'{args.run_prefix}-{kind}-{engine}.log', engine, minimum)
+              for kind, minimum in [('files', 50), ('element', 60), ('mobile', 112)]
+              for engine in ['chromium', 'webkit']]
 total = 0
 for filename, engine, minimum in checks:
     raw = (root / 'output' / filename).read_bytes()
@@ -21,7 +31,8 @@ for filename, engine, minimum in checks:
     rows = result.get('results', [])
     count = result.get('passed', 0)
     if (result.get('engine') != engine or count < minimum or result.get('failed') != 0
-            or len(rows) != count or result.get('errors') or not all(row.get('passed') is True for row in rows)):
+            or len(rows) != count or result.get('errors') or result.get('pageErrors')
+            or not all(row.get('passed') is True or row.get('status') == 'passed' for row in rows)):
         raise SystemExit(f'FAIL: {filename}: incomplete or failing checks')
     total += count
     print(f'PASS: {engine} {filename}: {count} checks')
