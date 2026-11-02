@@ -177,8 +177,8 @@ public class MemberController {
     }
 
     private Map<String,Object> postView(Map<String,Object> post,Map<String,Object> actor) {
-        Map<String,Object> result=new LinkedHashMap<>(post);
         boolean owner=actor!=null&&s(actor,"id").equals(s(post,"authorId"));
+        Map<String,Object> result=HelpPostState.view(post,owner||auth.isStaff(actor));
         if(actor==null||(!owner&&!s(actor,"status").equals("approved"))) result.remove("contact");
         if(!owner&&!auth.isStaff(actor)) {result.remove("reviewNote");result.remove("reviewedBy");}
         return result;
@@ -196,18 +196,18 @@ public class MemberController {
         Map<String,Object> post=map("id",id(),"title",text(input,"title",2,80),"content",text(input,"content",10,3000),
             "category",choice(input,"category","求职招聘","资源合作","生活互助","家乡分享"),"contact",text(input,"contact",0,80),
             "authorId",s(actor,"id"),"authorName",s(actor,"name"),"status","pending","createdAt",now(),"reviewNote","");
+        post.putAll(HelpPostsController.fields(input));post.put("progress","open");post.put("editRevision",0);
         store.save("post",post);auth.audit(actor,"post.create",s(post,"id"));return ok(post);
     }
     @PostMapping("/posts/{id}/close") public Map<String,Object> closePost(@PathVariable String id,HttpServletRequest req) {
         store.lockWrites();Map<String,Object> actor=auth.require(req),post=store.get("post",id);
         if(!s(post,"authorId").equals(s(actor,"id"))&&!auth.isStaff(actor)) throw new ApiException(403,"只能关闭自己发布的信息");
-        post.put("status","closed");store.save("post",post);auth.audit(actor,"post.close",id);return ok(post);
+        post.put("status","closed");post.put("draftStatus","closed");post.put("updatedAt",now());post.put("editRevision",HelpPostState.revision(post)+1);store.save("post",post);auth.audit(actor,"post.close",id);return ok(post);
     }
     @PostMapping("/posts/{id}/review") public Map<String,Object> reviewPost(@PathVariable String id,@RequestBody Map<String,Object> input,HttpServletRequest req) {
         store.lockWrites();Map<String,Object> actor=auth.staff(req),post=store.get("post",id);
-        if(!s(post,"status").equals("pending")) throw new ApiException(409,"该信息已处理，请刷新列表");
-        String status=choice(input,"status","approved","rejected");post.putAll(map("status",status,"reviewNote",text(input,"note",status.equals("rejected")?2:0,300),"reviewedBy",s(actor,"id")));
-        store.save("post",post);auth.audit(actor,"post."+status,id);return ok(post);
+        HelpPostsController.review(post,input,actor);
+        store.save("post",post);auth.audit(actor,"post."+s(input,"status"),id);return ok(post);
     }
     @GetMapping("/notices") public Map<String,Object> notices(HttpServletRequest req) {
         Map<String,Object> actor=auth.optional(req);return ok(recent("notice").stream().filter(x->s(x,"status").equals("published")||auth.isStaff(actor)).collect(Collectors.toList()));

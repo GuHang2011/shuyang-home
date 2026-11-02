@@ -13,6 +13,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 /** Versioned JSON records keep pilot data portable; all SQL values are parameterized. */
 @Component
 public class MemberStore {
+    @org.springframework.beans.factory.annotation.Autowired private org.springframework.context.ApplicationEventPublisher events;
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
     private final RecordCipher cipher;
@@ -22,6 +23,7 @@ public class MemberStore {
     @PostConstruct
     public void init() {
         jdbc.execute("CREATE TABLE IF NOT EXISTS syh_record (kind VARCHAR(32) NOT NULL, id VARCHAR(80) NOT NULL, body TEXT NOT NULL, PRIMARY KEY(kind,id))");
+        jdbc.execute("CREATE SEQUENCE IF NOT EXISTS syh_notification_seq START WITH 1");
         jdbc.execute("CREATE TABLE IF NOT EXISTS syh_session (token_hash VARCHAR(64) PRIMARY KEY, user_id VARCHAR(80) NOT NULL, expires_at BIGINT NOT NULL)");
         jdbc.execute("CREATE TABLE IF NOT EXISTS syh_write_lock (id INT PRIMARY KEY)");
         jdbc.update("INSERT INTO syh_write_lock(id) SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM syh_write_lock WHERE id=1)");
@@ -94,11 +96,19 @@ public class MemberStore {
     public void save(String kind, Map<String,Object> body) {
         dataMutex.writeLock().lock();
         try {
+            Map<String,Object> before=Collections.emptyMap();
+            if(BusinessChange.observes(kind)) {
+                List<Map<String,Object>> previous=jdbc.query("SELECT body FROM syh_record WHERE kind=? AND id=?",(rs,i)->read(rs.getString(1)),kind,s(body,"id"));
+                if(!previous.isEmpty())before=previous.get(0);
+                long version=before.get("businessVersion") instanceof Number?((Number)before.get("businessVersion")).longValue():0;
+                body.put("businessVersion",version+1);
+            }
             String data;
             try { data = cipher.encode(json.writeValueAsString(body)); } catch (Exception e) { throw new IllegalStateException(e); }
             String id = s(body,"id");
             int changed = jdbc.update("UPDATE syh_record SET body=? WHERE kind=? AND id=?", data,kind,id);
             if (changed == 0) jdbc.update("INSERT INTO syh_record(kind,id,body) VALUES(?,?,?)",kind,id,data);
+            if(events!=null&&BusinessChange.observes(kind))events.publishEvent(new BusinessChange(kind,before,body));
             if(securityKind(kind))jdbc.update("UPDATE syh_security_epoch SET revision=revision+1 WHERE id=1");
         } finally {
             dataMutex.writeLock().unlock();
@@ -115,6 +125,7 @@ public class MemberStore {
         try { return jdbc.query("SELECT DISTINCT kind FROM syh_record ORDER BY kind",(rs,i)->rs.getString(1)); }
         finally { dataMutex.readLock().unlock(); }
     }
+    public long nextNotificationSequence(){return jdbc.queryForObject("SELECT NEXT VALUE FOR syh_notification_seq",Long.class);}
     public void delete(String kind, String id) {
         dataMutex.writeLock().lock();
         try { jdbc.update("DELETE FROM syh_record WHERE kind=? AND id=?",kind,id);if(securityKind(kind))jdbc.update("UPDATE syh_security_epoch SET revision=revision+1 WHERE id=1"); }
