@@ -1,5 +1,13 @@
 # 构建与隔离验收脚本
 
+## v1.7.0 置顶、热帖与广播回归
+
+从根目录运行 `node scripts/test-broadcast-forum.cjs`，共 21 项，已纳入 Web 的 `npm run test:regression`。在 backend 目录运行 `mvnw.cmd -Dtest=BroadcastForumTests test`，共 14 项；发布前运行完整 `mvnw.cmd package`。覆盖权限、板块边界、隐藏清理、时间边界、音频归属与访问、并发版本冲突、重复提交及 H5／小程序音频生命周期。
+
+两端类型检查、Web／H5／小程序生产构建后，在隔离内存预览验证：管理员置顶与设为热帖 → 会员筛选 → 创建文字加语音 → 保存草稿／预约／发布 → 访客收听 → 关闭后编辑版本重新出现 → 手机撤下 → 公开音频不可访问。检查 1440、390、320px，使用 Chromium 和 WebKit；微信文件选择、音频及后台切换仍需真机验收。使用方法、规则和结果见[功能交付记录](../docs/置顶热帖与文字语音广播-v1.7.0.md)。
+
+## 通用构建与隔离预览
+
 在根目录运行 `node scripts/measure-web-bundle.cjs <新标签>`，用原 Web 生产构建测量首屏／全部 JS、CSS 与完整 dist 的原始字节及 gzip 估算。每次输出到全新的 `output/bundle-size/<标签>/`，已有标签不会覆盖。逐项基线与测量口径见[包体积优化报告](../docs/前端包体积优化-v1.6.1.md)。
 
 `start-preview.ps1` / `stop-preview.ps1` 启停仅绑定本机的隔离内存预览，默认端口19999（后端）、18888（Web）、18890（H5）。先完成后端打包并安装两套前端依赖。重启清空测试数据，不影响正式文件数据库。

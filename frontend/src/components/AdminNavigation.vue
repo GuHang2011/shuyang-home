@@ -8,7 +8,7 @@ const props = defineProps<{ modelValue: string; role: string; memberCount: numbe
 const emit = defineEmits<{ (event: 'update:modelValue', value: string): void; (event: 'navigate', value: string): void }>();
 const groups = computed(() => [
   { id: 'member', label: '会员服务', tabs: [{ id: 'members', label: '会员与入会' }, { id: 'posts', label: '互助审核' }] },
-  { id: 'content', label: '内容与活动', tabs: [{ id: 'activities', label: '活动发起审核' }, ...(forumEnabled ? [{ id: 'forum', label: '论坛管理' }] : []), { id: 'polls', label: '投票管理' }] },
+  { id: 'content', label: '内容与活动', tabs: [{ id: 'activities', label: '活动发起审核' }, ...(['superadmin','admin'].includes(props.role) ? [{ id: 'broadcasts', label: '全站广播' }] : []), ...(forumEnabled ? [{ id: 'forum', label: '论坛管理' }] : []), { id: 'polls', label: '投票管理' }] },
   { id: 'operation', label: '运营协作', tabs: [{ id: 'crowdfunding', label: '众筹审核' }, { id: 'ads', label: '广告管理' }, { id: 'resources', label: '资源管理' }] },
   { id: 'data', label: '数据管理', tabs: [{ id: 'files', label: '文件与打印' }, ...(['superadmin', 'admin'].includes(props.role) ? [{ id: 'audit', label: '操作日志' }] : [])] }
 ]);

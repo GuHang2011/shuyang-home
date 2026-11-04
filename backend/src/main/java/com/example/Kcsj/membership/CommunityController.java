@@ -37,6 +37,7 @@ public class CommunityController {
         String next=choice(input,"status","approved","rejected","hidden");String current=s(row,"status");
         if(!((current.equals("pending")&&(next.equals("approved")||next.equals("rejected")))||(current.equals("approved")&&next.equals("hidden"))||(current.equals("hidden")&&next.equals("approved"))))throw new ApiException(409,"内容已被处理，请刷新列表");
         row.putAll(map("status",next,"reviewNote",text(input,"note",next.equals("approved")?0:2,300),"reviewedBy",s(actor,"id")));
+        if(kind.equals("forum_topic")&&next.equals("hidden"))ForumPromotion.clear(row);
         store.save(kind,row);auth.audit(actor,kind+"."+next,id);return ok(row);
     }
     private List<String> photoIds(Map<String,Object> input){
@@ -49,6 +50,7 @@ public class CommunityController {
     private Map<String,Object> topicView(Map<String,Object> topic,Map<String,Object> actor) {
         Map<String,Object> result=publicRow(topic,actor);result.put("canModerate",policy.moderates(actor,s(topic,"category")));
         if(!s(topic,"forwardedTopicId").isEmpty()){Optional<Map<String,Object>> source=store.all("forum_topic").stream().filter(r->s(r,"id").equals(s(topic,"forwardedTopicId"))&&s(r,"status").equals("approved")&&policy.canRead(actor,s(r,"category"))&&!policy.hiddenAuthor(actor,s(r,"authorId"))).findFirst();result.put("forwarded",source.isPresent()?pick(source.get(),"id","title","content","authorName","audio","photos"):map("unavailable",true));}
+        result.putAll(map("pinned",s(topic,"status").equals("approved")&&b(topic,"pinned"),"hot",s(topic,"status").equals("approved")&&b(topic,"hot"),"promotionRevision",ForumPromotion.revision(topic)));
         result.put("replyCount",store.all("forum_reply").stream().filter(r->s(r,"topicId").equals(s(topic,"id"))&&s(r,"status").equals("approved")).count());return result;
     }
     private Map<String,Object> replyView(Map<String,Object> reply,Map<String,Object> actor,Map<String,Object> topic){
@@ -56,7 +58,7 @@ public class CommunityController {
         if(!s(reply,"parentId").isEmpty()){Map<String,Object> parent=store.get("forum_reply",s(reply,"parentId"));view.put("quoted",s(parent,"status").equals("approved")&&!policy.hiddenAuthor(actor,s(parent,"authorId"))?pick(parent,"floor","content","authorName","audio","photos"):map("unavailable",true));}return view;
     }
     @GetMapping("/forum/topics") public Map<String,Object> topics(HttpServletRequest req) {
-        Map<String,Object> actor=auth.optional(req);return ok(rows("forum_topic").stream().filter(x->s(x,"status").equals("approved")&&policy.canRead(actor,s(x,"category"))&&!policy.hiddenAuthor(actor,s(x,"authorId"))).map(x->topicView(x,actor)).collect(Collectors.toList()));
+        Map<String,Object> actor=auth.optional(req);return ok(rows("forum_topic").stream().filter(x->s(x,"status").equals("approved")&&policy.canRead(actor,s(x,"category"))&&!policy.hiddenAuthor(actor,s(x,"authorId"))).sorted(ForumPromotion.order()).map(x->topicView(x,actor)).collect(Collectors.toList()));
     }
     @GetMapping("/my/forum") public Map<String,Object> myTopics(HttpServletRequest req) {
         Map<String,Object> actor=auth.require(req);return ok(rows("forum_topic").stream().filter(x->owner(x,actor)).map(x->topicView(x,actor)).collect(Collectors.toList()));

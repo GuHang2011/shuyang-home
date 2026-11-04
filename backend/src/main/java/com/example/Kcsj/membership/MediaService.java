@@ -27,17 +27,18 @@ public class MediaService {
         if(sending&&s(room,"type").equals("direct"))for(Object id:(List<?>)room.get("participants"))if(!id.equals(s(actor,"id"))){Map<String,Object> peer=store.get("user",String.valueOf(id));if(!b(peer,"enabled")||!s(peer,"status").equals("approved")||policy.blocked(s(actor,"id"),String.valueOf(id)))throw new ApiException(403,"对方暂时无法接收附件");}
     }
     public Map<String,Object> upload(MultipartFile file,String scope,String roomId,String originalName,Map<String,Object> actor){
-        auth.member(actor);if(!Arrays.asList("chat","album","product","forum").contains(scope))throw new ApiException(400,"附件用途无效");
+        auth.member(actor);if(!Arrays.asList("chat","album","product","forum","broadcast").contains(scope))throw new ApiException(400,"附件用途无效");
+        if(scope.equals("broadcast")&&!auth.isAdmin(actor))throw new ApiException(403,"仅管理员可以上传广播语音");
         if(scope.equals("chat"))chatAccess(roomId,actor,true);else if(!scope.equals("forum")&&(scope.equals("product")?!auth.isAdmin(actor):!auth.isStaff(actor)))throw new ApiException(403,"仅管理人员可以上传展示图片");
         if(file.isEmpty()||file.getSize()>15*1024*1024)throw new ApiException(413,"附件须为1字节至15MB，图片最多8MB");
         auth.limit("upload:"+s(actor,"id"),40);
         String name=(!originalName.isEmpty()?originalName:Optional.ofNullable(file.getOriginalFilename()).orElse("附件")).replace('\\','/');name=name.substring(name.lastIndexOf('/')+1).replaceAll("[\\p{Cntrl}]","");if(name.length()>100)name=name.substring(name.length()-100);
         String ext=name.contains(".")?name.substring(name.lastIndexOf('.')+1).toLowerCase(Locale.ROOT):"";
-        byte[] bytes;String mime;boolean image=Arrays.asList("jpg","jpeg","png").contains(ext),audio=scope.equals("forum")&&!image;
+        byte[] bytes;String mime;boolean image=Arrays.asList("jpg","jpeg","png").contains(ext),audio=(scope.equals("forum")&&!image)||scope.equals("broadcast");
         try {
             bytes=file.getBytes();
             if(audio){
-                if(bytes.length>10*1024*1024)throw new ApiException(413,"论坛语音不能超过10MB");
+                if(bytes.length>10*1024*1024)throw new ApiException(413,scope.equals("broadcast")?"广播语音不能超过10MB":"论坛语音不能超过10MB");
                 mime=audioMime(ext,bytes);image=false;
             }else if(image){
                 if(bytes.length>8*1024*1024)throw new ApiException(413,"图片不能超过8MB");
@@ -62,6 +63,11 @@ public class MediaService {
         jdbc.update("INSERT INTO syh_attachment(id,content) VALUES (?,?)",s(row,"id"),bytes);store.save("attachment",row);return projection(row);
     }
     public Map<String,Object> projection(Map<String,Object> row){return pick(row,"id","name","size","type","mime");}
+    public Map<String,Object> bindBroadcast(String attachmentId,String broadcastId,Map<String,Object> actor){
+        Map<String,Object> row=store.get("attachment",attachmentId);
+        if(!auth.isAdmin(actor)||!s(row,"ownerId").equals(s(actor,"id"))||!s(row,"scope").equals("broadcast")||!s(row,"type").equals("audio")||b(row,"linked"))throw new ApiException(403,"请选择本人上传且尚未使用的广播语音");
+        row.putAll(map("linked",true,"broadcastId",broadcastId));store.save("attachment",row);return projection(row);
+    }
     private String audioMime(String ext,byte[] bytes){
         if(bytes.length>=12){
             String first=new String(bytes,0,4,StandardCharsets.US_ASCII),next=new String(bytes,8,4,StandardCharsets.US_ASCII);
@@ -92,6 +98,14 @@ public class MediaService {
     public String bindImage(String attachmentId,String scope,Map<String,Object> actor){Map<String,Object> row=store.get("attachment",attachmentId);if(!s(row,"scope").equals(scope)||!s(row,"type").equals("image")||(!s(row,"ownerId").equals(s(actor,"id"))&&!auth.isAdmin(actor)))throw new ApiException(403,"请选择当前用途的图片");row.put("linked",true);store.save("attachment",row);return attachmentId;}
     public Map<String,Object> authorize(String id,Map<String,Object> actor){
         Map<String,Object> row=store.get("attachment",id);String scope=s(row,"scope");
+        if(scope.equals("broadcast")){
+            if(!b(row,"linked")){
+                if(!auth.isAdmin(actor)||!s(row,"ownerId").equals(s(actor,"id")))throw new ApiException(404,"广播语音尚未发布");return row;
+            }
+            Map<String,Object> broadcast=store.get("broadcast",s(row,"broadcastId"));
+            if(!(broadcast.get("audio") instanceof Map)||!s((Map<String,Object>)broadcast.get("audio"),"id").equals(id)||(!auth.isAdmin(actor)&&!Broadcasts.active(broadcast)))throw new ApiException(404,"广播语音已撤下或尚未生效");
+            return row;
+        }
         if(scope.equals("forum")){
             if(!b(row,"linked")){
                 if(actor==null||!s(row,"ownerId").equals(s(actor,"id")))throw new ApiException(404,"附件尚未发布");
