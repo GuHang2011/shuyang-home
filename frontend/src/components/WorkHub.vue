@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
-import { ElAlert, ElButton, ElEmpty, ElForm, ElFormItem, ElInput, ElOption, ElPagination, ElSelect, ElTag } from 'element-plus';
+import { ElAlert } from 'element-plus/es/components/alert/index';
+import { ElButton } from 'element-plus/es/components/button/index';
+import { ElEmpty } from 'element-plus/es/components/empty/index';
+import { ElForm, ElFormItem } from 'element-plus/es/components/form/index';
+import { ElInput } from 'element-plus/es/components/input/index';
+import { ElOption, ElSelect } from 'element-plus/es/components/select/index';
+import { ElPagination } from 'element-plus/es/components/pagination/index';
+import { ElTag } from 'element-plus/es/components/tag/index';
 import { type Row, formatTime, postCategories } from '../../shared/domain';
 import { useWorkCenter, workKinds, type WorkMode } from '../../shared/useWorkCenter';
 import { api } from '../api';

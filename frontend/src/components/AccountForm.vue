@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { ElAlert, ElButton, ElCheckbox, ElForm, ElFormItem, ElInput, type FormInstance, type FormRules } from 'element-plus';
+import { ElAlert } from 'element-plus/es/components/alert/index';
+import { ElButton } from 'element-plus/es/components/button/index';
+import { ElCheckbox } from 'element-plus/es/components/checkbox/index';
+import { ElForm, ElFormItem } from 'element-plus/es/components/form/index';
+import { ElInput } from 'element-plus/es/components/input/index';
+import type { FormInstance, FormRules } from 'element-plus';
 import { type Row, privacy, agreement } from '../../shared/domain';
 
 const props = defineProps<{ modelValue: Row; mode: string; busy: boolean; rejected?: boolean }>();

@@ -1,5 +1,7 @@
 # 构建与隔离验收脚本
 
+在根目录运行 `node scripts/measure-web-bundle.cjs <新标签>`，用原 Web 生产构建测量首屏／全部 JS、CSS 与完整 dist 的原始字节及 gzip 估算。每次输出到全新的 `output/bundle-size/<标签>/`，已有标签不会覆盖。逐项基线与测量口径见[包体积优化报告](../docs/前端包体积优化-v1.6.1.md)。
+
 `start-preview.ps1` / `stop-preview.ps1` 启停仅绑定本机的隔离内存预览，默认端口19999（后端）、18888（Web）、18890（H5）。先完成后端打包并安装两套前端依赖。重启清空测试数据，不影响正式文件数据库。
 
 `prepare-community-fixture.py` 读取本地 `.cache/membership-preview/runtime.json`，在新预览中初始化两名测试会员；`prepare-phase2-fixture.py` 追加明确标注的相册、商品、活动、论坛、聊天数据。仅在隔离预览使用。固定密码为合成验收凭据，正式启动采用用户自设密码。

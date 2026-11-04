@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { ElButton, ElTabPane, ElTabs, ElTag } from 'element-plus';
+import { ElButton } from 'element-plus/es/components/button/index';
+import { ElTabPane, ElTabs } from 'element-plus/es/components/tabs/index';
+import { ElTag } from 'element-plus/es/components/tag/index';
 import { forumEnabled } from '../../shared/features';
 const props = defineProps<{ modelValue: string; role: string; memberCount: number; pendingCount: number | null }>();
 const emit = defineEmits<{ (event: 'update:modelValue', value: string): void; (event: 'navigate', value: string): void }>();

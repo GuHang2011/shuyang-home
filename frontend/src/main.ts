@@ -1,5 +1,5 @@
 import { createApp, h } from 'vue';
-import { ElConfigProvider } from 'element-plus';
+import { ElConfigProvider } from 'element-plus/es/components/config-provider/index';
 import zhCn from 'element-plus/es/locale/lang/zh-cn';
 import App from './App.vue';
 import './style.css';

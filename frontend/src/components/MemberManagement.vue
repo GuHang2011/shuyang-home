@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { ElButton, ElCard, ElEmpty, ElForm, ElFormItem, ElInput, ElOption, ElPagination, ElSelect, ElTable, ElTableColumn, ElTag } from 'element-plus';
+import { ElButton } from 'element-plus/es/components/button/index';
+import { ElCard } from 'element-plus/es/components/card/index';
+import { ElEmpty } from 'element-plus/es/components/empty/index';
+import { ElForm, ElFormItem } from 'element-plus/es/components/form/index';
+import { ElInput } from 'element-plus/es/components/input/index';
+import { ElOption, ElSelect } from 'element-plus/es/components/select/index';
+import { ElPagination } from 'element-plus/es/components/pagination/index';
+import { ElTable, ElTableColumn } from 'element-plus/es/components/table/index';
+import { ElTag } from 'element-plus/es/components/tag/index';
 import { type Row, roleNames, statusNames } from '../../shared/domain';
 const props = defineProps<{ members: Row[]; total: number; query: string; status: string; role: string; loading: boolean }>();
 const emit = defineEmits<{ (event: 'update:query', value: string): void; (event: 'update:status', value: string): void; (event: 'detail', kind: string, member: Row): void }>();

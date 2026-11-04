@@ -1,6 +1,19 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { ElAlert, ElButton, ElCard, ElCheckbox, ElForm, ElFormItem, ElInput, ElOption, ElPagination, ElSelect, ElStep, ElSteps, ElTabPane, ElTable, ElTableColumn, ElTabs, ElTag, ElUpload, type UploadFile, type UploadInstance } from 'element-plus';
+import { ElAlert } from 'element-plus/es/components/alert/index';
+import { ElButton } from 'element-plus/es/components/button/index';
+import { ElCard } from 'element-plus/es/components/card/index';
+import { ElCheckbox } from 'element-plus/es/components/checkbox/index';
+import { ElForm, ElFormItem } from 'element-plus/es/components/form/index';
+import { ElInput } from 'element-plus/es/components/input/index';
+import { ElOption, ElSelect } from 'element-plus/es/components/select/index';
+import { ElPagination } from 'element-plus/es/components/pagination/index';
+import { ElStep, ElSteps } from 'element-plus/es/components/steps/index';
+import { ElTabPane, ElTabs } from 'element-plus/es/components/tabs/index';
+import { ElTable, ElTableColumn } from 'element-plus/es/components/table/index';
+import { ElTag } from 'element-plus/es/components/tag/index';
+import { ElUpload } from 'element-plus/es/components/upload/index';
+import type { UploadFile, UploadInstance } from 'element-plus';
 import { type Row } from '../../shared/domain';
 import { api } from '../api';
 import { useBusinessFiles, fileInstructions, fileStatuses } from '../../shared/useBusinessFiles';
