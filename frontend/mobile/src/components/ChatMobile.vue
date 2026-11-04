@@ -2,9 +2,9 @@
 import StickerPicker from './StickerPicker.vue';
 import StickerImage from './StickerImage.vue';
 import { type Sticker } from '../../../shared/useStickers';
-import { computed, ref, watch } from 'vue';
+import { computed, onUnmounted, ref, watch } from 'vue';
 import MobileAttachment from './MobileAttachment.vue';
-import { api, choosePhoto, chooseFile, uploadMedia } from '../platform';
+import { api, choosePhotos, chooseFile, uploadMedia } from '../platform';
 import { type Row, formatTime } from '../../../shared/domain';
 import { useChat, chatStates } from '../../../shared/useChat';
 import { useRequestScope } from '../../../shared/useRequestScope';
@@ -15,17 +15,28 @@ const uploading = ref(false), stickersOpen = ref(false);
 function chooseSticker(item: Sticker) { if (busy.value || uploading.value || attachment.value || !canSend.value) return;sticker.value = item;stickersOpen.value = false; }
 watch([() => props.user?.id, () => active.value?.id, () => canSend.value], () => { stickersOpen.value = false; }, { flush: 'sync' });
 const uploadScope = useRequestScope();
-watch(() => [props.user?.id, active.value?.id], () => { uploadScope.invalidate();uploading.value = false; }, { flush: 'sync' });
+let cameraRequest: import('../../../shared/browserCamera').CameraRequest | null = null;
+function cancelCamera() { if (cameraRequest) { cameraRequest.cancelled = true;cameraRequest.cancel?.();cameraRequest = null; } }
+onUnmounted(cancelCamera);
+watch(() => [props.user?.id, active.value?.id, canSend.value], () => { cancelCamera();uploadScope.invalidate();uploading.value = false; }, { flush: 'sync' });
 async function attach(kind: string) {
   const room = active.value?.id;if (!room || busy.value || uploading.value || sticker.value) return;
-  const valid = uploadScope.capture();uploading.value = true;error.value = '';
+  const valid = uploadScope.capture(), request = {};cameraRequest = request;let preview = '';uploading.value = true;error.value = '';
   try {
-    const path = kind === 'file' ? await chooseFile() : await choosePhoto(kind === 'camera');
+    let path = '', name = '';
+    if (kind === 'file') path = await chooseFile();
+    else { const photos = await choosePhotos(1, kind === 'camera', request);if (!photos.length) return;path = photos[0].source;name = photos[0].name;preview = photos[0].preview; }
     if (!valid()) return;
-    const row = await uploadMedia(path, 'chat', room);
+    const row = await uploadMedia(path, 'chat', room, name);
     if (valid()) attachment.value = row;
   } catch(e) { if (valid()) error.value = (e as Error).message; }
-  finally { if (valid()) uploading.value = false; }
+  finally {
+    // #ifdef H5
+    if (preview.startsWith('blob:')) URL.revokeObjectURL(preview);
+    // #endif
+    if (cameraRequest === request) cameraRequest = null;
+    if (valid()) uploading.value = false;
+  }
 }
 const tab = ref('chats'), screen = ref(''), form = ref<Row>({}), query = ref(''), scrollTarget = ref('');
 const visible = computed(() => (tab.value === 'groups' ? groups.value : rooms.value).filter(r => r.title?.includes(query.value)));

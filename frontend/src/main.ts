@@ -26,4 +26,12 @@ import 'element-plus/es/components/step/style/css';
 import 'element-plus/es/components/tab-pane/style/css';
 import 'element-plus/es/components/table-column/style/css';
 import './element-theme.css';
-createApp({ render: () => h(ElConfigProvider, { locale: zhCn }, { default: () => h(App) }) }).mount('#app');
+import './skins.css';
+const mount = () => createApp({ render: () => h(ElConfigProvider, { locale: zhCn }, { default: () => h(App) }) }).mount('#app');
+if (import.meta.env.MODE === 'demo') {
+  import('../demo/bootstrap').then(module => module.startDemo()).then(mount).catch(error => {
+    const message = document.createElement('p');message.setAttribute('role', 'alert');message.textContent = '在线体验暂时无法启动：' + error.message;
+    const retry = document.createElement('button');retry.textContent = '重新加载';retry.onclick = () => location.reload();
+    document.querySelector('#app')!.replaceChildren(message, retry);
+  });
+} else mount();

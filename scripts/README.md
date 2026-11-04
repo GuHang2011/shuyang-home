@@ -111,3 +111,11 @@ python scripts/summarize-business-files.py --run-prefix retest-20261102
 ```
 
 汇总检查本轮界面、文件及7环境移动矩阵的完整结果、失败项、页面异常，并核对下载的Excel和打印PDF；详情见[问题与修复记录](../docs/回归测试与问题修复-20261102.md)。
+
+## v1.8.0 换肤、拍照与在线体验
+
+`node scripts/test-appearance-camera.cjs`验证12项主题偏好和相机生命周期场景，已加入前端`test:regression`。`node scripts/test-demo-runtime.mjs`验证独立演示数据层11项场景。
+
+执行`npm --prefix frontend run build:demo`后运行`node scripts/test-demo-browser.cjs`，脚本启动本机静态服务器，按GitHub Pages仓库子路径验收实际演示包，不需要业务后端。它使用合成摄像头和新的浏览器上下文，检查界面操作、刷新、隔离、重置、320／390px布局以及业务请求不外发。默认使用前端Playwright；`SHUYANG_PLAYWRIGHT_MODULE`可指定已有Playwright模块路径。结果和截图保存在被Git忽略的`output/demo-browser`。
+
+手机／微信真实摄像头仍需设备验收，详情见[本轮功能与验证记录](../docs/换肤拍照与在线演示-v1.8.0.md)。

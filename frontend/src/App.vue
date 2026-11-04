@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import AppearancePicker from './components/AppearancePicker.vue';
+import { useWebAppearance } from './useWebAppearance';
+const appearance = useWebAppearance();
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import GalleryHub from './components/GalleryHub.vue';
 import WorkHub from './components/WorkHub.vue';
@@ -153,7 +156,7 @@ onUnmounted(() => { disposed = true;++refreshGeneration;window.removeEventListen
       <div class="side-bottom"><div class="side-quote">一份乡情<br>一生牵挂<span>SUZHOU · SHUYANG</span></div><button class="account-button" @click="go('account')"><span class="avatar">{{ user?.name?.slice(0, 1) || '客' }}</span><span><b>{{ user?.name || '欢迎，远方的家人' }}</b><small>{{ user ? roleNames[user.role] : '登录 / 申请加入' }}</small></span><Icon name="arrow"/></button></div>
     </aside>
     <main>
-      <header class="topbar"><div class="breadcrumb"><span>沭阳之家</span><span class="slash">/</span>{{ nav.find(n => n.id === page)?.label || titles[page] || '个人中心' }}</div><div class="top-actions"><span class="location"><i></i>身在苏州 · 心系沭阳</span><button class="top-chat" aria-label="打开内部聊天" @click="go('chat')"><Icon name="chat"/><span v-if="unread" class="unread-badge">{{ unread > 99 ? '99+' : unread }}</span></button><button class="top-chat" @click="go('notifications')" aria-label="查看业务通知"><Icon name="bell"/><span v-if="workSummary?.unread" class="unread-badge">{{ workSummary.unread > 99 ? '99+' : workSummary.unread }}</span></button><button class="primary small" @click="user ? go('account') : open('login', { username: '', password: '' })">{{ user ? '我的会员中心' : '登录 / 加入' }}<Icon name="arrow"/></button></div></header>
+      <header class="topbar"><div class="breadcrumb"><span>沭阳之家</span><span class="slash">/</span>{{ nav.find(n => n.id === page)?.label || titles[page] || '个人中心' }}</div><div class="top-actions"><AppearancePicker :value="appearance.choice.value" :notice="appearance.notice.value" @select="appearance.select"/><span class="location"><i></i>身在苏州 · 心系沭阳</span><button class="top-chat" aria-label="打开内部聊天" @click="go('chat')"><Icon name="chat"/><span v-if="unread" class="unread-badge">{{ unread > 99 ? '99+' : unread }}</span></button><button class="top-chat" @click="go('notifications')" aria-label="查看业务通知"><Icon name="bell"/><span v-if="workSummary?.unread" class="unread-badge">{{ workSummary.unread > 99 ? '99+' : workSummary.unread }}</span></button><button class="primary small" @click="user ? go('account') : open('login', { username: '', password: '' })">{{ user ? '我的会员中心' : '登录 / 加入' }}<Icon name="arrow"/></button></div></header>
       <div v-if="error && !modal" class="page-alert" role="alert">{{ error }}<button class="text-button" @click="refresh">重新加载</button></div>
       <div class="content" :aria-busy="loading">
         <BroadcastBanner :key="broadcast ? broadcast.id + ':' + broadcast.revision : 'none'" :row="broadcast" :count="broadcasts.length" :error="broadcastError" :loading="broadcastLoading" @dismiss="dismissBroadcast" @next="nextBroadcast" @refresh="refreshBroadcasts"/>

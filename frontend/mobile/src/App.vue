@@ -20,3 +20,4 @@ onLaunch(() => {});
 </style>
 <style src="./readability.css"></style>
 <style src="./ui-polish.css"></style>
+<style src="./skins.css"></style>

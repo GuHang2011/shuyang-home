@@ -24,3 +24,4 @@ release/
 *.p12
 *.pfx
 **/project.private.config.json
+frontend/dist-demo/

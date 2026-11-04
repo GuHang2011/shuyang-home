@@ -1,0 +1,44 @@
+const fs = require('node:fs'), path = require('node:path'), http = require('node:http');
+const driver = process.env.SHUYANG_PLAYWRIGHT_MODULE || path.resolve(__dirname, '../frontend/node_modules/playwright');
+const { chromium } = require(driver), { expect } = require(driver + '/test');
+const root = path.resolve(__dirname, '../frontend/dist-demo'), out = path.resolve(__dirname, '../output/demo-browser');
+const mime = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.woff2': 'font/woff2' };
+async function run() {
+  fs.mkdirSync(out, { recursive: true });const leaks = [], errors = [], checks = [];
+  const server = http.createServer((req, res) => {
+    const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+    if (pathname.startsWith('/api/')) leaks.push(pathname);
+    if (!pathname.startsWith('/shuyang-home/')) { res.writeHead(404);res.end();return; }
+    const relative = pathname.slice('/shuyang-home/'.length) || 'index.html', file = path.resolve(root, relative);
+    if (!file.startsWith(root + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(404);res.end();return; }
+    res.writeHead(200, { 'Content-Type': mime[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store' });fs.createReadStream(file).pipe(res);
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const url = 'http://127.0.0.1:' + server.address().port + '/shuyang-home/';
+  const browser = await chromium.launch({ headless: true, args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] });
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } }), page = await context.newPage();page.setDefaultTimeout(12000);page.on('pageerror', e => errors.push(e.message));
+  const check = name => { checks.push(name);console.log('PASS: ' + name); };
+  const api = (p, method = 'GET', body) => page.evaluate(async ({ p, method, body }) => { const result = await (await fetch('/api' + p, { method, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + sessionStorage.getItem('shuyang_home_session') }, body: body === undefined ? undefined : JSON.stringify(body) })).json();if (result.code !== 0) throw Error(result.message);return result.data; }, { p, method, body });
+  const go = async label => { await page.locator('.sidebar').getByRole('button', { name: label, exact: true }).click(); };
+  async function photo(open) { await open();await page.locator('.camera-dialog').getByRole('button', { name: '拍照', exact: true }).click();await expect(page.locator('.camera-dialog img')).toBeVisible();await page.locator('.camera-dialog').getByRole('button', { name: '使用这张照片', exact: true }).click(); }
+  try {
+    await page.goto(url);await expect(page.locator('.demo-toolbar')).toBeVisible();await expect(page.getByRole('button', { name: '我的会员中心', exact: true })).toBeVisible();await expect.poll(() => page.locator('.brand img').evaluate(img => img.naturalWidth > 0)).toBe(true);check('first visit loads under the Pages repository path');
+    await go('乡情活动');await page.locator('.event-card').filter({ hasText: '周末老乡交流会' }).getByRole('button').first().click();await page.getByRole('button', { name: '我要报名', exact: true }).click();await expect.poll(async () => (await api('/my/signups')).length).toBe(1);check('member signs up through the UI');
+    if (await page.locator('.element-dialog').isVisible()) await page.getByRole('button', { name: '关闭弹窗', exact: true }).click();
+    await go('老乡论坛');await page.getByRole('button', { name: '＋ 发起话题', exact: true }).click();await page.locator('.forum-form').getByLabel('标题', { exact: true }).fill('Pages 拍照验收');
+    await photo(() => page.locator('.photo-field').getByRole('button', { name: '拍照上传', exact: true }).click());await expect(page.locator('.photo-state')).toContainText('已上传');await page.locator('.forum-form').getByRole('button', { name: '提交审核', exact: true }).click();await expect.poll(async () => (await api('/my/forum')).filter(t => t.title === 'Pages 拍照验收').length).toBe(1);const topic = (await api('/my/forum')).find(t => t.title === 'Pages 拍照验收');expect(topic.status).toBe('pending');check('camera photo stays local and topic requires review');
+    await go('家里聊聊');await page.locator('.conversation').filter({ hasText: '老乡体验群' }).click();await expect(page.locator('.message')).toHaveCount(1);await page.getByLabel('聊天消息').fill('本机聊天验收');await page.getByRole('button', { name: /发送消息/ }).click();await expect(page.locator('.message')).toHaveCount(2);await photo(() => page.locator('.chat-attach-tools').getByRole('button', { name: '拍照', exact: true }).click());await expect(page.locator('.chat-pending')).toContainText('拍照-');await expect(page.locator('.message')).toHaveCount(2);await page.getByRole('button', { name: /发送消息/ }).click();await expect(page.locator('.message')).toHaveCount(3);await expect(page.locator('.attachment-picture img')).toBeVisible();check('chat text and camera attachment send and preview locally');
+    await page.reload();await expect(page.locator('.conversation')).toBeVisible();expect((await api('/chat/conversations/demo-room')).messages.length).toBe(3);expect((await api('/my/signups')).length).toBe(1);check('records and camera Blob survive refresh');
+    await page.getByLabel('演示身份', { exact: true }).selectOption('demo-admin');await expect(page.getByRole('tab', { name: '会员服务', exact: true })).toBeVisible();await page.getByRole('tab', { name: '会员服务', exact: true }).click();await page.getByRole('button', { name: '审核申请', exact: true }).click();await page.getByRole('button', { name: '确认审核', exact: true }).click();await expect.poll(async () => (await api('/admin/members')).find(m => m.id === 'demo-pending').status).toBe('approved');check('administrator reviews a sample membership');
+    await api('/forum/topics/' + topic.id + '/review', 'POST', { status: 'approved' });expect((await api('/forum/topics')).some(t => t.id === topic.id)).toBe(true);check('review makes the photographed topic public within this browser');
+    await go('相聚相册');await page.locator('.album-card').first().click();await photo(() => page.locator('.photo-field').getByRole('button', { name: '拍照上传', exact: true }).click());await expect(page.locator('.photo-state')).toContainText('已上传');await page.getByRole('button', { name: '添加到相册（1张）', exact: true }).click();await expect(page.locator('.photo-wall article')).toHaveCount(1);await expect(page.locator('.photo-wall img')).toHaveJSProperty('complete', true);check('album photo is added and rendered from local storage');
+    await page.getByRole('button', { name: '换肤', exact: true }).click();await page.locator('.appearance-option').filter({ hasText: /^夜间/ }).click();await page.getByRole('button', { name: '关闭换肤' }).click();await expect(page.locator('html')).toHaveAttribute('data-skin', 'night');await page.screenshot({ path: path.join(out, 'desktop.png'), animations: 'disabled' });
+    for (const width of [390, 320]) { await page.setViewportSize({ width, height: 844 });await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);await page.screenshot({ path: path.join(out, 'mobile-' + width + '.png'), animations: 'disabled' }); }check('night theme and demo toolbar fit desktop and 390/320px');
+    const isolated = await browser.newContext(), other = await isolated.newPage();await other.goto(url);await expect(other.locator('.demo-toolbar')).toBeVisible();const count = await other.evaluate(async () => (await (await fetch('/api/my/signups', { headers: { Authorization: 'Bearer demo-member' } })).json()).data.length);expect(count).toBe(0);await isolated.close();check('separate browser context has independent sample data');
+    await page.setViewportSize({ width: 1440, height: 1000 });page.once('dialog', dialog => dialog.accept());await Promise.all([page.waitForEvent('load'), page.getByRole('button', { name: '重置数据', exact: true }).click()]);await expect(page.locator('.demo-toolbar')).toBeVisible();await expect.poll(async () => (await api('/albums/demo-album')).photos.length).toBe(0);expect((await api('/chat/conversations/demo-room')).messages.length).toBe(1);check('reset removes local photos and messages');
+    expect(leaks).toEqual([]);expect(errors).toEqual([]);check('zero API traffic to host and zero page runtime errors');
+    fs.writeFileSync(path.join(out, 'results.json'), JSON.stringify({ checks, leaks, errors }, null, 2));console.log('RESULT ' + checks.length + ' passed');
+  } catch (error) { await page.screenshot({ path: path.join(out, 'failure.png'), fullPage: true });throw error; }
+  finally { await browser.close();await new Promise(resolve => server.close(resolve)); }
+}
+run().catch(error => { console.error(error);process.exitCode = 1; });

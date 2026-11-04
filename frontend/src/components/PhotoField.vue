@@ -2,10 +2,16 @@
 import { ref, watch } from 'vue';
 import { uploadMedia } from '../api';
 import { usePhotoUpload } from '../../shared/usePhotoUpload';
+import { useBrowserCamera } from '../../shared/useBrowserCamera';
 import type { Row } from '../../shared/domain';
 const props = withDefaults(defineProps<{ modelValue?: Row[]; userId?: string; scope?: string; disabled?: boolean; max?: number }>(), { scope: 'forum', max: 9 });
 const emit = defineEmits<{ (event: 'update:modelValue', value: Row[]): void; (event: 'busy', value: boolean): void }>();
-const picker = ref<HTMLInputElement | null>(null), camera = ref<HTMLInputElement | null>(null);
+const picker = ref<HTMLInputElement | null>(null);
+const { taking, cameraError, photograph } = useBrowserCamera(() => props.userId);
+async function takePhoto() {
+  if (props.disabled || running.value || !remaining.value) return;
+  const photo = await photograph();if (photo) add([photo]);
+}
 const { items, error, running, remaining, add, remove, retry } = usePhotoUpload({
   identity: () => props.userId, max: props.max,
   upload: async (file, progress) => {
@@ -30,9 +36,9 @@ function select(event: Event) {
   <section class="photo-field" aria-label="上传照片" :aria-busy="running">
     <div class="photo-field-heading"><strong>添加照片</strong><span>{{ items.length }} / {{ max }} 张</span></div>
     <p class="photo-hint">JPG / PNG，每张不超过 8MB。选择后可预览、移除，提交后才会发布。</p>
-    <input ref="picker" class="photo-input" type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" multiple aria-label="选择照片" :disabled="disabled || running || !remaining" @change="select">
-    <input ref="camera" class="photo-input" type="file" accept="image/jpeg,image/png" capture="environment" aria-label="拍照上传" :disabled="disabled || running || !remaining" @change="select">
-    <div class="photo-actions"><button type="button" class="outline" :disabled="disabled || running || !remaining" @click="picker?.click()">＋ 选择照片</button><button type="button" class="outline" :disabled="disabled || running || !remaining" @click="camera?.click()">拍照上传</button></div>
+    <input ref="picker" class="photo-input" type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" multiple aria-label="选择照片" :disabled="disabled || running || taking || !remaining" @change="select">
+    <p v-if="cameraError" class="form-error" role="alert">{{ cameraError }}</p>
+    <div class="photo-actions"><button type="button" class="outline" :disabled="disabled || running || taking || !remaining" @click="picker?.click()">＋ 选择照片</button><button type="button" class="outline" :disabled="disabled || running || taking || !remaining" @click="takePhoto">拍照上传</button></div>
     <div v-if="items.length" class="photo-selection">
       <article v-for="item in items" :key="item.key" class="photo-selection-item">
         <img :src="item.preview" :alt="item.name"><p class="photo-name">{{ item.name }}</p>

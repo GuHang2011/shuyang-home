@@ -26,7 +26,15 @@ export function downloadMedia(id: string): Promise<string> {
     });
   });
 }
-export function choosePhotos(count: number, camera = false): Promise<import('../../shared/usePhotoUpload').PhotoFile[]> {
+export async function choosePhotos(count: number, camera = false, request?: import('../../shared/browserCamera').CameraRequest): Promise<import('../../shared/usePhotoUpload').PhotoFile[]> {
+  // #ifdef H5
+  if (camera) {
+    const { captureBrowserPhoto } = await import('./browserCamera');
+    const photo = await captureBrowserPhoto(request);
+    return photo ? [{ ...photo, source: photo.preview }] : [];
+  }
+  // #endif
+  if (request?.cancelled) return [];
   return new Promise((resolve, reject) => uni.chooseImage({
     count, sizeType: ['compressed'], sourceType: camera ? ['camera'] : ['album'],
     success: result => {

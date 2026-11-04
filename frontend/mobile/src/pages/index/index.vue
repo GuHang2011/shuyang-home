@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import AppearancePickerMobile from '../../components/AppearancePickerMobile.vue';
+import { useMobileAppearance } from '../../useMobileAppearance';
+const appearance = useMobileAppearance();
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { onPullDownRefresh, onShareAppMessage, onShow, onHide, onLoad } from '@dcloudio/uni-app';
 import GalleryMobile from '../../components/GalleryMobile.vue';
@@ -93,7 +96,8 @@ onShareAppMessage(() => tab.value === 'railway' ? ({ title: '一凡说高铁 · 
 </script>
 
 <template>
-  <view class="page">
+  <view :class="['page','skin-surface','skin-' + appearance.skin.value, { 'custom-skin': appearance.skin.value !== 'classic' }]">
+    <AppearancePickerMobile :value="appearance.choice.value" :notice="appearance.notice.value" @select="appearance.select"/>
     <BroadcastBannerMobile :key="broadcast ? broadcast.id + ':' + broadcast.revision : 'none'" :row="broadcast" :count="broadcasts.length" :error="broadcastError" :loading="broadcastLoading" @dismiss="dismissBroadcast" @next="nextBroadcast" @refresh="refreshBroadcasts"/>
     <view v-if="error" class="error"><text>{{ error }}</text><button class="text-button" @click="load">重新加载</button></view>
     <view v-if="loading" class="loading">正在加载家里的消息…</view>

@@ -1,0 +1,27 @@
+const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),assert=require('node:assert/strict');
+const root=path.resolve(__dirname,'../frontend'),vue=require(path.join(root,'node_modules/vue')),ts=require(path.join(root,'node_modules/typescript'));
+const cases=[],test=(name,run)=>cases.push({name,run}),flush=async()=>{for(let i=0;i<12;i++)await Promise.resolve();await vue.nextTick();};
+const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};};
+function harness(capture=async()=>null){
+ const mounted=[],unmounted=[],released=[],scope=vue.effectScope(),identity=vue.ref('member-a');
+ function load(file){const exports={};vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(root,'shared',file+'.ts'),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,{exports,URL:{revokeObjectURL:value=>released.push(value)},require:name=>name==='vue'?{...vue,onMounted:f=>mounted.push(f),onUnmounted:f=>unmounted.push(f)}:{captureBrowserPhoto:capture}});return exports;}
+ return {identity,released,load,run:fn=>scope.run(fn),mount:()=>mounted.forEach(f=>f()),dispose(){unmounted.forEach(f=>f());scope.stop();}};
+}
+function appearance(value='classic',options={}){
+ const h=harness(),applied=[],written=[];let system=false,notifyTheme,notifyStore,disposed=false;
+ const state=h.run(()=>h.load('appearance').useAppearance({read:()=>{if(options.readError)throw Error('denied');return value;},write:v=>{if(options.writeError)throw Error('quota');written.push(v);},dark:()=>system,apply:v=>applied.push(v),subscribe:(a,b)=>{notifyTheme=a;notifyStore=b;return ()=>{disposed=true;};}}));h.mount();
+ return {...h,state,applied,written,system(v){system=v;notifyTheme(v);},store:v=>notifyStore(v),disposed:()=>disposed};
+}
+test('saved theme is restored without writing a new preference',()=>{const h=appearance('forest');assert.equal(h.state.skin.value,'forest');assert.deepEqual(h.applied,['forest']);assert.equal(h.written.length,0);h.dispose();});
+test('invalid saved preference falls back to classic',()=>{const h=appearance('<script>');assert.equal(h.state.choice.value,'classic');h.dispose();});
+test('manual selection is applied and persisted',()=>{const h=appearance();h.state.select('night');assert.equal(h.state.skin.value,'night');assert.deepEqual(h.written,['night']);h.dispose();});
+test('system preference responds to operating system changes',()=>{const h=appearance('system');h.system(true);assert.equal(h.state.skin.value,'night');h.system(false);assert.equal(h.state.skin.value,'classic');assert.equal(h.written.length,0);h.dispose();});
+test('explicit theme is unaffected by operating system changes',()=>{const h=appearance('amber');h.system(true);assert.equal(h.state.skin.value,'amber');h.dispose();});
+test('blocked storage still applies the selected theme with a notice',()=>{const h=appearance('classic',{readError:true,writeError:true});h.state.select('forest');assert.equal(h.state.skin.value,'forest');assert.match(h.state.notice.value,/无法保存/);h.dispose();});
+test('another tab updates or clears the selection without a write loop',()=>{const h=appearance('forest');h.store('night');assert.equal(h.state.skin.value,'night');h.store(null);assert.equal(h.state.skin.value,'classic');assert.equal(h.written.length,0);h.dispose();});
+test('unmount removes system and storage listeners',()=>{const h=appearance();h.dispose();assert.equal(h.disposed(),true);});
+test('camera duplicate clicks open one request',async()=>{const d=deferred();let calls=0;const h=harness(()=>{calls++;return d.promise;}),camera=h.run(()=>h.load('useBrowserCamera').useBrowserCamera(()=>h.identity.value));const first=camera.photograph();await flush();await camera.photograph();assert.equal(calls,1);d.resolve(null);await first;assert.equal(camera.taking.value,false);h.dispose();});
+test('account switch cancels camera and discards an already resolving photo',async()=>{const d=deferred();let cancelled=0;const h=harness(request=>{request.cancel=()=>cancelled++;return d.promise;}),camera=h.run(()=>h.load('useBrowserCamera').useBrowserCamera(()=>h.identity.value));const task=camera.photograph();await flush();d.resolve({preview:'blob:private'});h.identity.value='member-b';assert.equal(await task,null);assert.equal(cancelled,1);assert.deepEqual(h.released,['blob:private']);h.dispose();});
+test('camera unmount cancels a pending capture',async()=>{const d=deferred();let cancelled=0;const h=harness(request=>{request.cancel=()=>{cancelled++;d.resolve(null);};return d.promise;}),camera=h.run(()=>h.load('useBrowserCamera').useBrowserCamera(()=>h.identity.value));const task=camera.photograph();await flush();h.dispose();assert.equal(await task,null);assert.equal(cancelled,1);});
+test('capture failure unlocks the button and shows a useful message',async()=>{const h=harness(()=>Promise.reject(Error('failure'))),camera=h.run(()=>h.load('useBrowserCamera').useBrowserCamera(()=>h.identity.value));assert.equal(await camera.photograph(),null);assert.equal(camera.taking.value,false);assert.match(camera.cameraError.value,/选择照片/);h.dispose();});
+(async()=>{let failures=0;for(const {name,run} of cases){try{await run();console.log('PASS: '+name);}catch(e){failures++;console.error('FAIL: '+name+'\n'+e.stack);}}console.log(`${cases.length-failures}/${cases.length} appearance/camera scenarios passed`);process.exitCode=failures?1:0;})();
