@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { defineComponent, h, onUnmounted, ref } from 'vue';
 import type { BrowserQRCodeReader, IScannerControls } from '@zxing/browser';
+withDefaults(defineProps<{ confirmLabel?: string }>(), { confirmLabel: '确认打开站内签到' });
 const emit = defineEmits<{ (event: 'result', value: string): void }>();const video = ref<HTMLVideoElement | null>(null), error = ref(''), running = ref(false), result = ref('');let reader: BrowserQRCodeReader | undefined, controls: IScannerControls | undefined;let disposed = false;
 async function decoder() { if (!reader) { const module = await import('@zxing/browser');reader = new module.BrowserQRCodeReader(); }return reader; }
 function stop() { controls?.stop();controls = undefined;running.value = false; }
@@ -17,5 +18,5 @@ const NativeImagePicker = defineComponent(() => () => h('label', { class: 'outli
 ]));
 onUnmounted(() => { disposed = true;stop(); });
 </script>
-<template><section class="scanner-panel"><h3>扫一扫</h3><p>将二维码放入画面，或从相册选择二维码图片。</p><NativeCamera/><div class="button-row"><button class="primary" :disabled="running" @click="start">打开摄像头</button><button v-if="running" class="outline" @click="stop">停止扫描</button><NativeImagePicker/></div><p v-if="error" role="status" class="form-error">{{ error }}</p><div v-if="result" class="scan-result"><small>识别结果</small><p>{{ result }}</p><button class="primary" @click="emit('result',result)">确认打开站内签到</button><p>不会自动访问陌生链接或执行二维码内容。</p></div></section></template>
+<template><section class="scanner-panel"><h3>扫一扫</h3><p>将二维码放入画面，或从相册选择二维码图片。</p><NativeCamera/><div class="button-row"><button class="primary" :disabled="running" @click="start">打开摄像头</button><button v-if="running" class="outline" @click="stop">停止扫描</button><NativeImagePicker/></div><p v-if="error" role="status" class="form-error">{{ error }}</p><div v-if="result" class="scan-result"><small>识别结果</small><p>{{ result }}</p><button class="primary" @click="emit('result',result)">{{confirmLabel}}</button><p>不会自动访问陌生链接或执行二维码内容。</p></div></section></template>
 <style scoped>.scanner-panel{background:#fffefa;border:1px solid #e7dfce;border-radius:20px;padding:25px;margin:20px 0}.scanner-panel h3{font-size:20px;margin-bottom:10px}.scanner-panel p{font-size:12px;color:#8a8c7c;line-height:1.8}.scanner-panel video{display:none;width:100%;max-height:350px;border-radius:15px;background:#1c3446;margin:18px 0}.scanner-panel video.active{display:block}.scan-file{cursor:pointer;position:relative;font-size:13px}.scan-file input{opacity:0;position:absolute;width:1px;height:1px}.scan-result{padding:18px;background:#f1ead8;border-radius:14px;margin-top:20px;overflow-wrap:anywhere}.scan-result small{color:#9e8250}.scanner-panel .button-row{margin-top:18px}</style>

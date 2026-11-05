@@ -1,4 +1,5 @@
 // Browser-only sample data. This module is never loaded by the production build.
+import { demoExtensions } from './demo-extensions.mjs';
 export const demoSchema = 1;
 const now = () => new Date().toISOString();
 const date = days => new Date(Date.now() + days * 86400000).toISOString();
@@ -25,7 +26,7 @@ export function createDemoState() {
 }
 const pick = (rows, key) => rows.find(row => row.id === key) || fail('演示记录不存在，请刷新或重置演示数据');
 export const stickerPacks = [{ id: 'demo', name: '乡情问候', stickers: [{ id: 'demo-hello', label: '老乡好' }, { id: 'demo-great', label: '赞一个' }, { id: 'demo-cheer', label: '加油' }] }];
-const mediaView = row => row ? { id: row.id, name: row.name, size: row.size, contentType: row.type, type: row.type.startsWith('image/') ? 'image' : row.type.startsWith('audio/') ? 'audio' : 'file' } : null;
+const mediaView = row => row ? { id: row.id, name: row.name, size: row.size, contentType: row.type, type: row.type.startsWith('image/') ? 'image' : row.type.startsWith('audio/') ? 'audio' : row.type.startsWith('video/') ? 'video' : 'file' } : null;
 const broadcastView = row => ({ ...row, state: row.status !== 'published' ? row.status : Date.parse(row.endsAt) <= Date.now() ? 'expired' : Date.parse(row.startsAt) > Date.now() ? 'scheduled' : 'active' });
 
 /** Return the same JSON data shapes as the application, with isolated local state. */
@@ -47,6 +48,8 @@ export async function demoRequest(state, request) {
     return rows;
   };
   const body = read || path === '/media/upload' ? {} : await request.json().catch(() => ({}));
+  const extra = demoExtensions(state, { path, method, body: read ? { query: url.searchParams } : body, actor, member, admin });
+  if (extra !== undefined) return extra;
   if (path === '/demo/reset' && method === 'POST') return { reset: true };
   if (path === '/auth/me') return actor || fail('请在顶部选择演示身份');
   if (path === '/auth/logout') return {};
@@ -118,12 +121,20 @@ export async function demoRequest(state, request) {
   }
   if (path === '/media/upload' && !read) {
     member();const form = await request.formData(), file = form.get('file');
-    if (!(file instanceof Blob) || !file.size || file.size > 10 * 1024 * 1024) fail('请选择不超过10MB的演示文件');
-    if (!['image/jpeg', 'image/png', 'audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/x-m4a', 'application/pdf', 'text/plain'].includes(file.type)) fail('体验版支持 JPG、PNG、MP3、WAV、M4A、PDF 和 TXT');
+    const display = form.get('scope') === 'display';
+    if (display) admin();
+    const limit = display ? (file?.type === 'video/mp4' ? 15 : 8) : 10;
+    if (!(file instanceof Blob) || !file.size || file.size > limit * 1024 * 1024) fail('请选择不超过' + limit + 'MB的演示文件');
+    const accepted = display ? ['image/jpeg', 'image/png', 'video/mp4'] : ['image/jpeg', 'image/png', 'audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/x-m4a', 'application/pdf', 'text/plain'];
+    if (!accepted.includes(file.type)) fail(display ? '大屏支持 JPG、PNG 和 MP4' : '体验版支持 JPG、PNG、MP3、WAV、M4A、PDF 和 TXT');
     if (Object.values(state.media).reduce((n, m) => n + m.size, 0) + file.size > 50 * 1024 * 1024) fail('演示附件已达50MB，请重置演示数据后继续');
-    const row = { id: id('media'), name: file.name || '演示附件', size: file.size, type: file.type, blob: file, scope: form.get('scope') };state.media[row.id] = row;return mediaView(row);
+    const row = { id: id('media'), name: file.name || '演示附件', size: file.size, type: file.type, blob: file, scope: form.get('scope'), ownerId: actor.id, linked: false };state.media[row.id] = row;return mediaView(row);
   }
-  if ((match = path.match(/^\/media\/([^/]+)$/)) && read) return state.media[match[1]]?.blob || fail('本机演示附件不存在');
+  if ((match = path.match(/^\/media\/([^/]+)$/)) && read) {
+    const media = state.media[match[1]];
+    if (media?.scope === 'display' && !state.displaySlides.some(s => s.mediaId === media.id && s.status === 'published') && actor?.id !== media.ownerId && actor?.role !== 'superadmin') fail('素材尚未公开展示');
+    return media?.blob || fail('本机演示附件不存在');
+  }
   if (path === '/chat/unread') return { count: 0 };
   if (path === '/chat/sticker-packs') return stickerPacks;
   if (['/chat/conversations', '/chat/groups'].includes(path) && read) { member();return state.rooms; }

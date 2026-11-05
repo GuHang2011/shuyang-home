@@ -19,7 +19,6 @@ public class BusinessFilesController {
     private static final Map<String,String> LABELS=new LinkedHashMap<>();
     static {LABELS.put("members","会员资料");LABELS.put("signups","活动报名");LABELS.put("orders","订单履约");}
     public BusinessFilesController(MemberStore store,MemberAuth auth,BusinessWorkbook workbook,ObjectMapper json){this.store=store;this.auth=auth;this.workbook=workbook;this.json=json;}
-    private Map<String,Object> ok(Object data){return map("code",0,"data",data);}
     private Map<String,Object> access(String kind,HttpServletRequest req){if(!LABELS.containsKey(kind))throw new ApiException(400,"请选择有效的数据类型");return kind.equals("signups")?auth.staff(req):auth.admin(req);}
     private List<String> headers(String kind){
         if(kind.equals("members"))return Arrays.asList("会员编号","姓名","家乡","现居地","行业","个人简介");
@@ -29,14 +28,14 @@ public class BusinessFilesController {
     @GetMapping("/options") public Map<String,Object> options(HttpServletRequest req){
         Map<String,Object> actor=auth.staff(req);List<Map<String,Object>> kinds=new ArrayList<>();
         for(String kind:LABELS.keySet())if(auth.isAdmin(actor)||kind.equals("signups"))kinds.add(map("id",kind,"label",LABELS.get(kind),"headers",headers(kind)));
-        return ok(map("kinds",kinds,"events",store.all("event").stream().sorted(Comparator.comparing((Map<String,Object> r)->s(r,"startsAt")).reversed()).map(r->pick(r,"id","title","startsAt","status")).collect(Collectors.toList())));
+        return ApiResponse.ok(map("kinds",kinds,"events",store.all("event").stream().sorted(Comparator.comparing((Map<String,Object> r)->s(r,"startsAt")).reversed()).map(r->pick(r,"id","title","startsAt","status")).collect(Collectors.toList())));
     }
-    @GetMapping("/template") public Map<String,Object> template(@RequestParam String kind,HttpServletRequest req){access(kind,req);return ok(workbook.write(LABELS.get(kind)+"-导入模板.xlsx",headers(kind),Collections.emptyList()));}
-    @GetMapping("/report") public Map<String,Object> report(@RequestParam String kind,@RequestParam(defaultValue="") String eventId,@RequestParam(defaultValue="") String query,@RequestParam(defaultValue="all") String status,HttpServletRequest req){access(kind,req);return ok(buildReport(kind,eventId,query,status));}
+    @GetMapping("/template") public Map<String,Object> template(@RequestParam String kind,HttpServletRequest req){access(kind,req);return ApiResponse.ok(workbook.write(LABELS.get(kind)+"-导入模板.xlsx",headers(kind),Collections.emptyList()));}
+    @GetMapping("/report") public Map<String,Object> report(@RequestParam String kind,@RequestParam(defaultValue="") String eventId,@RequestParam(defaultValue="") String query,@RequestParam(defaultValue="all") String status,HttpServletRequest req){access(kind,req);return ApiResponse.ok(buildReport(kind,eventId,query,status));}
     @GetMapping("/export") @SuppressWarnings("unchecked") public Map<String,Object> export(@RequestParam String kind,@RequestParam(defaultValue="") String eventId,@RequestParam(defaultValue="") String query,@RequestParam(defaultValue="all") String status,HttpServletRequest req){
         Map<String,Object> actor=access(kind,req),report=buildReport(kind,eventId,query,status);
         Map<String,Object> file=workbook.write(LABELS.get(kind)+"-"+LocalDate.now(ZoneId.of("Asia/Shanghai"))+".xlsx",(List<String>)report.get("headers"),(List<List<String>>)report.get("rows"));
-        auth.audit(actor,"files.export-"+kind,"rows:"+report.get("total"));return ok(file);
+        auth.audit(actor,"files.export-"+kind,"rows:"+report.get("total"));return ApiResponse.ok(file);
     }
     private String time(Object raw){try{return DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.of("Asia/Shanghai")).format(Instant.parse(String.valueOf(raw)));}catch(Exception e){return "";}}
     private String label(String value){
@@ -134,7 +133,7 @@ public class BusinessFilesController {
             String token=id(),expires=Instant.now().plusSeconds(600).toString();
             store.save(JOB,map("id",token,"ownerId",s(actor,"id"),"kind",kind,"eventId",eventId,"lines",lines,"fingerprint",fingerprint(plan),"expiresAt",expires,"committed",false));result.put("token",token);result.put("expiresAt",expires);
         }
-        return ok(result);
+        return ApiResponse.ok(result);
     }
     @PostMapping("/commit") @SuppressWarnings("unchecked") public Map<String,Object> commit(@RequestBody Map<String,Object> input,HttpServletRequest req){
         store.lockWrites();Map<String,Object> actor=auth.staff(req);String token=text(input,"token",36,36);Map<String,Object> job=store.all(JOB).stream().filter(r->s(r,"id").equals(token)).findFirst().orElseThrow(()->new ApiException(409,"预览已失效，请重新选择文件"));
@@ -142,11 +141,11 @@ public class BusinessFilesController {
         String kind=s(job,"kind");access(kind,req);
         if(Instant.parse(s(job,"expiresAt")).isBefore(Instant.now()))throw new ApiException(409,"预览已超过有效期，请重新选择文件");
         if(!flag(input,"confirmed"))throw new ApiException(400,"请确认已经核对文件和会员意愿");
-        if(b(job,"committed"))return ok(map("count",job.get("count"),"replayed",true));
+        if(b(job,"committed"))return ApiResponse.ok(map("count",job.get("count"),"replayed",true));
         Plan plan=plan(kind,s(job,"eventId"),(List<Map<String,Object>>)job.get("lines"));
         if(plan.invalid>0||!fingerprint(plan).equals(s(job,"fingerprint")))throw new ApiException(409,"数据已变化或业务条件已失效，请重新预览后提交");
         for(Map<String,Object> change:plan.writes){Map<String,Object> row=(Map<String,Object>)change.get("row");if(s(change,"type").equals("signup")&&!row.containsKey("createdAt"))row.put("createdAt",now());row.put("updatedAt",now());store.save(s(change,"type"),row);}
         int count=plan.writes.size();store.save(JOB,map("id",token,"ownerId",s(actor,"id"),"kind",kind,"count",count,"committed",true,"expiresAt",Instant.now().plusSeconds(86400).toString()));
-        auth.audit(actor,"files.import-"+kind,"batch:"+token+";rows:"+count);cleanup();return ok(map("count",count,"replayed",false));
+        auth.audit(actor,"files.import-"+kind,"batch:"+token+";rows:"+count);cleanup();return ApiResponse.ok(map("count",count,"replayed",false));
     }
 }

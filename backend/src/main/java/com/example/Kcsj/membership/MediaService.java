@@ -27,17 +27,19 @@ public class MediaService {
         if(sending&&s(room,"type").equals("direct"))for(Object id:(List<?>)room.get("participants"))if(!id.equals(s(actor,"id"))){Map<String,Object> peer=store.get("user",String.valueOf(id));if(!b(peer,"enabled")||!s(peer,"status").equals("approved")||policy.blocked(s(actor,"id"),String.valueOf(id)))throw new ApiException(403,"对方暂时无法接收附件");}
     }
     public Map<String,Object> upload(MultipartFile file,String scope,String roomId,String originalName,Map<String,Object> actor){
-        auth.member(actor);if(!Arrays.asList("chat","album","product","forum","broadcast").contains(scope))throw new ApiException(400,"附件用途无效");
+        auth.member(actor);if(!Arrays.asList("chat","album","product","forum","life","display","broadcast").contains(scope))throw new ApiException(400,"附件用途无效");
         if(scope.equals("broadcast")&&!auth.isAdmin(actor))throw new ApiException(403,"仅管理员可以上传广播语音");
-        if(scope.equals("chat"))chatAccess(roomId,actor,true);else if(!scope.equals("forum")&&(scope.equals("product")?!auth.isAdmin(actor):!auth.isStaff(actor)))throw new ApiException(403,"仅管理人员可以上传展示图片");
+        if(scope.equals("chat"))chatAccess(roomId,actor,true);else if(!Arrays.asList("forum","life").contains(scope)&&(scope.equals("product")?!auth.isAdmin(actor):!auth.isStaff(actor)))throw new ApiException(403,"仅管理人员可以上传展示图片");
         if(file.isEmpty()||file.getSize()>15*1024*1024)throw new ApiException(413,"附件须为1字节至15MB，图片最多8MB");
         auth.limit("upload:"+s(actor,"id"),40);
         String name=(!originalName.isEmpty()?originalName:Optional.ofNullable(file.getOriginalFilename()).orElse("附件")).replace('\\','/');name=name.substring(name.lastIndexOf('/')+1).replaceAll("[\\p{Cntrl}]","");if(name.length()>100)name=name.substring(name.length()-100);
         String ext=name.contains(".")?name.substring(name.lastIndexOf('.')+1).toLowerCase(Locale.ROOT):"";
-        byte[] bytes;String mime;boolean image=Arrays.asList("jpg","jpeg","png").contains(ext),audio=(scope.equals("forum")&&!image)||scope.equals("broadcast");
+        byte[] bytes;String mime;boolean image=Arrays.asList("jpg","jpeg","png").contains(ext),audio=(scope.equals("forum")&&!image)||scope.equals("broadcast"),video=scope.equals("display")&&ext.equals("mp4");
         try {
             bytes=file.getBytes();
-            if(audio){
+            if(video){
+                validateMp4(bytes);mime="video/mp4";
+            }else if(audio){
                 if(bytes.length>10*1024*1024)throw new ApiException(413,scope.equals("broadcast")?"广播语音不能超过10MB":"论坛语音不能超过10MB");
                 mime=audioMime(ext,bytes);image=false;
             }else if(image){
@@ -47,7 +49,7 @@ public class MediaService {
                     try{reader.setInput(stream);String format=reader.getFormatName().toLowerCase(Locale.ROOT);if(!Arrays.asList("jpeg","png").contains(format)||((long)reader.getWidth(0))*reader.getHeight(0)>20000000)throw new ApiException(400,"图片格式无效或超过2000万像素");BufferedImage decoded=reader.read(0);ByteArrayOutputStream output=new ByteArrayOutputStream();ImageIO.write(decoded,format,output);bytes=output.toByteArray();mime=format.equals("png")?"image/png":"image/jpeg";name=name.substring(0,name.lastIndexOf('.'))+(format.equals("png")?".png":".jpg");}finally{reader.dispose();}
                 }
             }else{
-                if(!scope.equals("chat"))throw new ApiException(400,"相册和商品仅支持JPG、PNG图片");
+                if(!scope.equals("chat"))throw new ApiException(400,scope.equals("display")?"大屏支持JPG、PNG照片和MP4视频":"相册和商品仅支持JPG、PNG图片");
                 if(!Arrays.asList("pdf","txt","docx","xlsx","pptx","zip").contains(ext))throw new ApiException(400,"支持PDF、TXT、DOCX、XLSX、PPTX、ZIP文件，以及JPG、PNG图片");
                 if(ext.equals("pdf")&&!new String(Arrays.copyOf(bytes,Math.min(5,bytes.length)),StandardCharsets.US_ASCII).equals("%PDF-"))throw new ApiException(400,"PDF文件内容无效");
                 if(Arrays.asList("docx","xlsx","pptx","zip").contains(ext)&&(bytes.length<4||bytes[0]!='P'||bytes[1]!='K'))throw new ApiException(400,"文件内容与扩展名不匹配");
@@ -59,10 +61,25 @@ public class MediaService {
         for(Map<String,Object> old:store.all("attachment"))if(s(old,"messageId").isEmpty()&&!b(old,"linked")&&Instant.parse(s(old,"createdAt")).isBefore(Instant.now().minusSeconds(86400))){jdbc.update("DELETE FROM syh_attachment WHERE id=?",s(old,"id"));store.delete("attachment",s(old,"id"));}
         long total=0,daily=0;for(Map<String,Object> row:store.all("attachment")){long size=((Number)row.get("size")).longValue();total+=size;if(s(row,"ownerId").equals(s(actor,"id"))&&Instant.parse(s(row,"createdAt")).isAfter(Instant.now().minusSeconds(86400)))daily+=size;}
         if(daily+bytes.length>100L*1024*1024||total+bytes.length>1024L*1024*1024)throw new ApiException(413,"附件存储额度已满，请联系管理员");
-        Map<String,Object> row=map("id",id(),"ownerId",s(actor,"id"),"scope",scope,"roomId",scope.equals("chat")?roomId:"","name",name,"size",bytes.length,"type",audio?"audio":image?"image":"file","mime",mime,"createdAt",now());
+        Map<String,Object> row=map("id",id(),"ownerId",s(actor,"id"),"scope",scope,"roomId",scope.equals("chat")?roomId:"","name",name,"size",bytes.length,"type",video?"video":audio?"audio":image?"image":"file","mime",mime,"createdAt",now());
         jdbc.update("INSERT INTO syh_attachment(id,content) VALUES (?,?)",s(row,"id"),bytes);store.save("attachment",row);return projection(row);
     }
     public Map<String,Object> projection(Map<String,Object> row){return pick(row,"id","name","size","type","mime");}
+    private void validateMp4(byte[] bytes){
+        boolean format=false,metadata=false,content=false;int offset=0;
+        while(offset+8<=bytes.length){
+            long size=java.nio.ByteBuffer.wrap(bytes,offset,4).getInt()&0xffffffffL;
+            String kind=new String(bytes,offset+4,4,StandardCharsets.US_ASCII);int header=8;
+            if(size==1){if(offset+16>bytes.length)break;size=java.nio.ByteBuffer.wrap(bytes,offset+8,8).getLong();header=16;}
+            if(size==0)size=bytes.length-offset;
+            if(size<header||size>bytes.length-offset)break;
+            if(kind.equals("ftyp")&&offset==0&&size>=16)format=true;
+            if(kind.equals("moov")&&size>header)metadata=true;
+            if(kind.equals("mdat")&&size>header)content=true;
+            offset+=(int)size;
+        }
+        if(!format||!metadata||!content||offset!=bytes.length)throw new ApiException(400,"MP4文件内容无效，请选择完整的视频文件");
+    }
     public Map<String,Object> bindBroadcast(String attachmentId,String broadcastId,Map<String,Object> actor){
         Map<String,Object> row=store.get("attachment",attachmentId);
         if(!auth.isAdmin(actor)||!s(row,"ownerId").equals(s(actor,"id"))||!s(row,"scope").equals("broadcast")||!s(row,"type").equals("audio")||b(row,"linked"))throw new ApiException(403,"请选择本人上传且尚未使用的广播语音");
@@ -98,6 +115,19 @@ public class MediaService {
     public String bindImage(String attachmentId,String scope,Map<String,Object> actor){Map<String,Object> row=store.get("attachment",attachmentId);if(!s(row,"scope").equals(scope)||!s(row,"type").equals("image")||(!s(row,"ownerId").equals(s(actor,"id"))&&!auth.isAdmin(actor)))throw new ApiException(403,"请选择当前用途的图片");row.put("linked",true);store.save("attachment",row);return attachmentId;}
     public Map<String,Object> authorize(String id,Map<String,Object> actor){
         Map<String,Object> row=store.get("attachment",id);String scope=s(row,"scope");
+        if(scope.equals("display")){
+            boolean published=store.all("display_slide").stream().anyMatch(r->s(r,"mediaId").equals(id)&&s(r,"status").equals("published"));
+            if(!published&&!auth.isStaff(actor))throw new ApiException(404,"大屏素材尚未公开");
+            return row;
+        }
+        if(scope.equals("life")){
+            boolean own=actor!=null&&s(row,"ownerId").equals(s(actor,"id"));
+            if(!b(row,"linked")){if(!own)throw new ApiException(404,"图片尚未发布");auth.member(actor);return row;}
+            Map<String,Object>entry=store.get("life_entry",s(row,"lifeId"));
+            boolean listed=entry.get("photos") instanceof List&&((List<?>)entry.get("photos")).contains(id);
+            if(!listed||(!own&&!auth.isStaff(actor)&&(!LifeRules.publicState(entry)||!LifeRules.parentVisible(store,entry,actor))))throw new ApiException(404,"图片暂不可用");
+            return row;
+        }
         if(scope.equals("broadcast")){
             if(!b(row,"linked")){
                 if(!auth.isAdmin(actor)||!s(row,"ownerId").equals(s(actor,"id")))throw new ApiException(404,"广播语音尚未发布");return row;

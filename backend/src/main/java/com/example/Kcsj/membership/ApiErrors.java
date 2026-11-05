@@ -11,6 +11,7 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import javax.servlet.http.HttpServletRequest;
 import java.util.Map;
 
 @RestControllerAdvice
@@ -29,8 +30,9 @@ public class ApiErrors {
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     public ResponseEntity<Map<String,Object>> media(Exception e) { return api(new ApiException(415, "请求内容类型不受支持")); }
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String,Object>> unknown(Exception e) {
-        log.error("Membership request failed: {}", e.getClass().getSimpleName());
+    public ResponseEntity<Map<String,Object>> unknown(Exception e, HttpServletRequest request) {
+        String path = request != null ? request.getRequestURI() : "unknown";
+        log.error("Membership request failed: {} {}", path, e.getClass().getSimpleName(), e);
         return api(new ApiException(500, "服务暂时不可用，请稍后重试"));
     }
 }

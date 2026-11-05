@@ -17,7 +17,6 @@ public class CommunityController {
     private final ForumPolicy policy;
     private final MediaService media;
     public CommunityController(MemberStore store,MemberAuth auth,ForumPolicy policy,MediaService media) {this.store=store;this.auth=auth;this.policy=policy;this.media=media;}
-    private Map<String,Object> ok(Object data) {return map("code",0,"data",data);}
     private List<Map<String,Object>> rows(String kind) {
         List<Map<String,Object>> rows=store.all(kind);rows.sort(Comparator.comparing((Map<String,Object>x)->s(x,"createdAt")).reversed());return rows;
     }
@@ -38,7 +37,7 @@ public class CommunityController {
         if(!((current.equals("pending")&&(next.equals("approved")||next.equals("rejected")))||(current.equals("approved")&&next.equals("hidden"))||(current.equals("hidden")&&next.equals("approved"))))throw new ApiException(409,"内容已被处理，请刷新列表");
         row.putAll(map("status",next,"reviewNote",text(input,"note",next.equals("approved")?0:2,300),"reviewedBy",s(actor,"id")));
         if(kind.equals("forum_topic")&&next.equals("hidden"))ForumPromotion.clear(row);
-        store.save(kind,row);auth.audit(actor,kind+"."+next,id);return ok(row);
+        store.save(kind,row);auth.audit(actor,kind+"."+next,id);return ApiResponse.ok(row);
     }
     private List<String> photoIds(Map<String,Object> input){
         Object value=input.get("photoIds");if(value==null)return Collections.emptyList();
@@ -58,16 +57,16 @@ public class CommunityController {
         if(!s(reply,"parentId").isEmpty()){Map<String,Object> parent=store.get("forum_reply",s(reply,"parentId"));view.put("quoted",s(parent,"status").equals("approved")&&!policy.hiddenAuthor(actor,s(parent,"authorId"))?pick(parent,"floor","content","authorName","audio","photos"):map("unavailable",true));}return view;
     }
     @GetMapping("/forum/topics") public Map<String,Object> topics(HttpServletRequest req) {
-        Map<String,Object> actor=auth.optional(req);return ok(rows("forum_topic").stream().filter(x->s(x,"status").equals("approved")&&policy.canRead(actor,s(x,"category"))&&!policy.hiddenAuthor(actor,s(x,"authorId"))).sorted(ForumPromotion.order()).map(x->topicView(x,actor)).collect(Collectors.toList()));
+        Map<String,Object> actor=auth.optional(req);return ApiResponse.ok(rows("forum_topic").stream().filter(x->s(x,"status").equals("approved")&&policy.canRead(actor,s(x,"category"))&&!policy.hiddenAuthor(actor,s(x,"authorId"))).sorted(ForumPromotion.order()).map(x->topicView(x,actor)).collect(Collectors.toList()));
     }
     @GetMapping("/my/forum") public Map<String,Object> myTopics(HttpServletRequest req) {
-        Map<String,Object> actor=auth.require(req);return ok(rows("forum_topic").stream().filter(x->owner(x,actor)).map(x->topicView(x,actor)).collect(Collectors.toList()));
+        Map<String,Object> actor=auth.require(req);return ApiResponse.ok(rows("forum_topic").stream().filter(x->owner(x,actor)).map(x->topicView(x,actor)).collect(Collectors.toList()));
     }
     @GetMapping("/forum/topics/{id}") public Map<String,Object> topic(@PathVariable String id,HttpServletRequest req) {
         Map<String,Object> actor=auth.optional(req),topic=store.get("forum_topic",id);
         policy.participating(actor,s(topic,"category"),false);
         if(s(topic,"status").equals("deleted")||policy.hiddenAuthor(actor,s(topic,"authorId"))||!visible(topic,actor))throw new ApiException(404,"话题不存在或尚未公开");
-        return ok(map("topic",topicView(topic,actor),"replies",rows("forum_reply").stream().filter(x->s(x,"topicId").equals(id)&&(visible(x,actor)||policy.moderates(actor,s(topic,"category")))&&!policy.hiddenAuthor(actor,s(x,"authorId"))).sorted(Comparator.comparing(x->s(x,"createdAt"))).map(x->replyView(x,actor,topic)).collect(Collectors.toList())));
+        return ApiResponse.ok(map("topic",topicView(topic,actor),"replies",rows("forum_reply").stream().filter(x->s(x,"topicId").equals(id)&&(visible(x,actor)||policy.moderates(actor,s(topic,"category")))&&!policy.hiddenAuthor(actor,s(x,"authorId"))).sorted(Comparator.comparing(x->s(x,"createdAt"))).map(x->replyView(x,actor,topic)).collect(Collectors.toList())));
     }
     @PostMapping("/forum/topics") public Map<String,Object> createTopic(@RequestBody Map<String,Object> input,HttpServletRequest req) {
         store.lockWrites();Map<String,Object> actor=approvedMember(req);auth.limit("forum:"+s(actor,"id"),20);Map<String,Object> topic=author(actor);
@@ -77,7 +76,7 @@ public class CommunityController {
         String forward=text(input,"forwardedTopicId",0,80);if(!forward.isEmpty()){Map<String,Object> source=store.get("forum_topic",forward);policy.participating(actor,s(source,"category"),false);if(!policy.canRead(actor,s(source,"category"))||!s(source,"status").equals("approved")||policy.hiddenAuthor(actor,s(source,"authorId")))throw new ApiException(404,"原帖不可转发");topic.put("forwardedTopicId",forward);}
         if(!audioId.isEmpty())topic.put("audio",media.bindForum(audioId,"forum_topic",s(topic,"id"),actor));
         topic.put("photos",media.bindForumPhotos(photos,"forum_topic",s(topic,"id"),actor));
-        store.save("forum_topic",topic);auth.audit(actor,"forum.create",s(topic,"id"));return ok(topic);
+        store.save("forum_topic",topic);auth.audit(actor,"forum.create",s(topic,"id"));return ApiResponse.ok(topic);
     }
     @PostMapping("/forum/topics/{id}/replies") public Map<String,Object> reply(@PathVariable String id,@RequestBody Map<String,Object> input,HttpServletRequest req) {
         store.lockWrites();Map<String,Object> actor=approvedMember(req),topic=store.get("forum_topic",id);
@@ -89,33 +88,33 @@ public class CommunityController {
         reply.put("floor",floor+1);String parent=text(input,"parentId",0,80);if(!parent.isEmpty()){Map<String,Object> quoted=store.get("forum_reply",parent);if(!s(quoted,"topicId").equals(id)||!s(quoted,"status").equals("approved")||policy.hiddenAuthor(actor,s(quoted,"authorId")))throw new ApiException(400,"引用的楼层已不可用");reply.put("parentId",parent);}
         if(!audioId.isEmpty())reply.put("audio",media.bindForum(audioId,"forum_reply",s(reply,"id"),actor));
         reply.put("photos",media.bindForumPhotos(photos,"forum_reply",s(reply,"id"),actor));
-        store.save("forum_reply",reply);auth.audit(actor,"forum.reply",s(reply,"id"));return ok(reply);
+        store.save("forum_reply",reply);auth.audit(actor,"forum.reply",s(reply,"id"));return ApiResponse.ok(reply);
     }
     @PostMapping("/forum/topics/{id}/lock") public Map<String,Object> lock(@PathVariable String id,HttpServletRequest req) {
         store.lockWrites();Map<String,Object> actor=auth.require(req),topic=store.get("forum_topic",id);
         if(!owner(topic,actor)&&!policy.moderates(actor,s(topic,"category")))throw new ApiException(403,"只有作者或组织者可以关闭话题");
-        topic.put("locked",true);store.save("forum_topic",topic);auth.audit(actor,"forum.lock",id);return ok(topic);
+        topic.put("locked",true);store.save("forum_topic",topic);auth.audit(actor,"forum.lock",id);return ApiResponse.ok(topic);
     }
     @GetMapping("/admin/forum") public Map<String,Object> manageForum(HttpServletRequest req) {
         Map<String,Object> actor=auth.require(req);if(!ForumPolicy.BOARDS.stream().anyMatch(b->policy.moderates(actor,b)))throw new ApiException(403,"仅版主可以查看管理队列");
-        return ok(map("topics",rows("forum_topic").stream().filter(r->policy.moderates(actor,s(r,"category"))).collect(Collectors.toList()),"replies",rows("forum_reply").stream().filter(r->policy.moderates(actor,s(store.get("forum_topic",s(r,"topicId")),"category"))).collect(Collectors.toList())));
+        return ApiResponse.ok(map("topics",rows("forum_topic").stream().filter(r->policy.moderates(actor,s(r,"category"))).collect(Collectors.toList()),"replies",rows("forum_reply").stream().filter(r->policy.moderates(actor,s(store.get("forum_topic",s(r,"topicId")),"category"))).collect(Collectors.toList())));
     }
     @PostMapping("/forum/topics/{id}/review") public Map<String,Object> reviewTopic(@PathVariable String id,@RequestBody Map<String,Object> input,HttpServletRequest req) {return moderate("forum_topic",id,input,req);}
     @PostMapping("/forum/replies/{id}/review") public Map<String,Object> reviewReply(@PathVariable String id,@RequestBody Map<String,Object> input,HttpServletRequest req) {return moderate("forum_reply",id,input,req);}
 
     @GetMapping("/resources") public Map<String,Object> resources(HttpServletRequest req) {
-        Map<String,Object> actor=auth.optional(req);return ok(rows("resource").stream().filter(x->s(x,"status").equals("approved")).map(x->publicRow(x,actor)).collect(Collectors.toList()));
+        Map<String,Object> actor=auth.optional(req);return ApiResponse.ok(rows("resource").stream().filter(x->s(x,"status").equals("approved")).map(x->publicRow(x,actor)).collect(Collectors.toList()));
     }
     @GetMapping("/my/resources") public Map<String,Object> myResources(HttpServletRequest req) {
-        Map<String,Object> actor=auth.require(req);return ok(rows("resource").stream().filter(x->owner(x,actor)).collect(Collectors.toList()));
+        Map<String,Object> actor=auth.require(req);return ApiResponse.ok(rows("resource").stream().filter(x->owner(x,actor)).collect(Collectors.toList()));
     }
     @PostMapping("/resources") public Map<String,Object> createResource(@RequestBody Map<String,Object> input,HttpServletRequest req) {
         store.lockWrites();Map<String,Object> actor=approvedMember(req);auth.limit("resource:"+s(actor,"id"),20);Map<String,Object> resource=author(actor);
         resource.putAll(map("title",text(input,"title",2,80),"offering",text(input,"offering",5,2000),"seeking",text(input,"seeking",5,2000),
             "category",choice(input,"category","技能服务","闲置物品","场地设备","信息渠道"),"district",text(input,"district",2,80),"contact",text(input,"contact",0,80),"availability","available"));
-        store.save("resource",resource);auth.audit(actor,"resource.create",s(resource,"id"));return ok(resource);
+        store.save("resource",resource);auth.audit(actor,"resource.create",s(resource,"id"));return ApiResponse.ok(resource);
     }
-    @GetMapping("/admin/resources") public Map<String,Object> manageResources(HttpServletRequest req) {auth.staff(req);return ok(map("resources",rows("resource"),"exchanges",rows("exchange")));}
+    @GetMapping("/admin/resources") public Map<String,Object> manageResources(HttpServletRequest req) {auth.staff(req);return ApiResponse.ok(map("resources",rows("resource"),"exchanges",rows("exchange")));}
     @PostMapping("/resources/{id}/review") public Map<String,Object> reviewResource(@PathVariable String id,@RequestBody Map<String,Object> input,HttpServletRequest req) {return moderate("resource",id,input,req);}
     @PostMapping("/resources/{id}/close") public Map<String,Object> closeResource(@PathVariable String id,HttpServletRequest req) {
         store.lockWrites();Map<String,Object> actor=auth.require(req),resource=store.get("resource",id);
@@ -123,7 +122,7 @@ public class CommunityController {
         if(s(resource,"availability").equals("reserved"))throw new ApiException(409,"资源正在交换中，请先处理交换记录");
         resource.put("availability","closed");store.save("resource",resource);
         for(Map<String,Object> exchange:store.all("exchange"))if(s(exchange,"resourceId").equals(id)&&s(exchange,"status").equals("pending")){exchange.put("status","unavailable");store.save("exchange",exchange);}
-        auth.audit(actor,"resource.close",id);return ok(resource);
+        auth.audit(actor,"resource.close",id);return ApiResponse.ok(resource);
     }
     @PostMapping("/resources/{id}/requests") public Map<String,Object> requestExchange(@PathVariable String id,@RequestBody Map<String,Object> input,HttpServletRequest req) {
         store.lockWrites();Map<String,Object> actor=approvedMember(req),resource=store.get("resource",id);
@@ -131,14 +130,14 @@ public class CommunityController {
         if(!s(resource,"status").equals("approved")||!s(resource,"availability").equals("available"))throw new ApiException(409,"资源当前不可申请交换");
         Map<String,Object> target=store.get("user",s(resource,"authorId"));if(!b(target,"enabled"))throw new ApiException(409,"资源发布者暂时无法回应");
         String message=text(input,"message",5,1000),contact=text(input,"contact",2,80);
-        for(Map<String,Object> row:store.all("exchange"))if(s(row,"resourceId").equals(id)&&s(row,"requesterId").equals(s(actor,"id"))&&Arrays.asList("pending","accepted").contains(s(row,"status")))return ok(row);
+        for(Map<String,Object> row:store.all("exchange"))if(s(row,"resourceId").equals(id)&&s(row,"requesterId").equals(s(actor,"id"))&&Arrays.asList("pending","accepted").contains(s(row,"status")))return ApiResponse.ok(row);
         auth.limit("exchange:"+s(actor,"id"),20);
         Map<String,Object> exchange=map("id",id(),"resourceId",id,"resourceTitle",s(resource,"title"),"ownerId",s(resource,"authorId"),"ownerName",s(resource,"authorName"),
             "requesterId",s(actor,"id"),"requesterName",s(actor,"name"),"message",message,"contact",contact,"ownerContact",s(resource,"contact"),"status","pending","ownerConfirmed",false,"requesterConfirmed",false,"createdAt",now());
-        store.save("exchange",exchange);auth.audit(actor,"exchange.request",s(exchange,"id"));return ok(exchange);
+        store.save("exchange",exchange);auth.audit(actor,"exchange.request",s(exchange,"id"));return ApiResponse.ok(exchange);
     }
     @GetMapping("/my/exchanges") public Map<String,Object> myExchanges(HttpServletRequest req) {
-        Map<String,Object> actor=auth.require(req);return ok(rows("exchange").stream().filter(x->s(x,"requesterId").equals(s(actor,"id"))||s(x,"ownerId").equals(s(actor,"id"))).collect(Collectors.toList()));
+        Map<String,Object> actor=auth.require(req);return ApiResponse.ok(rows("exchange").stream().filter(x->s(x,"requesterId").equals(s(actor,"id"))||s(x,"ownerId").equals(s(actor,"id"))).collect(Collectors.toList()));
     }
     @PostMapping("/exchanges/{id}/action") public Map<String,Object> exchangeAction(@PathVariable String id,@RequestBody Map<String,Object> input,HttpServletRequest req) {
         store.lockWrites();Map<String,Object> actor=approvedMember(req),row=store.get("exchange",id),resource=store.get("resource",s(row,"resourceId"));
@@ -158,11 +157,11 @@ public class CommunityController {
             if(!isRequester)throw new ApiException(403,"仅申请者可取消申请");
             if(!state.equals("pending"))throw new ApiException(409,"只能取消尚未接受的申请");row.put("status","cancelled");
         } else {
-            if(state.equals("completed"))return ok(row);
+            if(state.equals("completed"))return ApiResponse.ok(row);
             if(!state.equals("accepted"))throw new ApiException(409,"接受交换后才可确认完成");
             row.put(isOwner?"ownerConfirmed":"requesterConfirmed",true);
             if(b(row,"ownerConfirmed")&&b(row,"requesterConfirmed")){row.put("status","completed");resource.put("availability","exchanged");store.save("resource",resource);}
         }
-        row.put("updatedAt",now());store.save("exchange",row);auth.audit(actor,"exchange."+action,id);return ok(row);
+        row.put("updatedAt",now());store.save("exchange",row);auth.audit(actor,"exchange."+action,id);return ApiResponse.ok(row);
     }
 }

@@ -44,3 +44,10 @@
 ## v1.5.0 Element 界面
 
 新增电脑／手机工作台、登录校验与资料编辑截图，均为合成测试数据。详见[界面与验收](../Element界面与验收.md)。
+
+
+## v1.9.0 大屏、通讯录与生活服务
+
+[乡情大屏](display-190.png) · [主题选择](themes-190.png) · [通讯录](contacts-190.png) · [手机通讯录](contacts-phone-190.png) · [手机大屏](display-phone-190.png)。大屏、主题和通讯录截图使用独立在线演示的虚构资料。
+
+[电脑悬浮窗](railway-celebration-desktop.png) · [手机网页悬浮窗](railway-celebration-phone.png) · [H5悬浮窗](railway-celebration-h5.png) · [生活服务H5](life-h5-170.png)。本组来自隔离演示数据，截图中的人员、指南和活动均为验收示例。

@@ -1,4 +1,5 @@
 import { createDemoState, demoRequest, demoSchema, stickerPacks } from './demo-runtime.mjs';
+import { demoBlobResponse } from './demo-extensions.mjs';
 const release = '__DEMO_VERSION__';
 const scope = new URL(self.registration.scope);
 const databaseName = 'shuyang-demo:' + scope.pathname;
@@ -26,7 +27,7 @@ async function handle(request) {
     const next = write ? (reset ? createDemoState() : structuredClone(state)) : state;
     const result = await demoRequest(next, request);
     if (write) { await store(next);state = next; }
-    if (result instanceof Blob) return new Response(result, { headers: { 'Content-Type': result.type, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
+    if (result instanceof Blob) return demoBlobResponse(result, request.headers.get('Range'));
     return json({ code: 0, data: result });
   } catch (error) { return json({ code: 400, message: error.message || '本机演示数据无法保存，请检查浏览器存储设置。' }, 400); }
 }
