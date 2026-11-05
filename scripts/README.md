@@ -1,5 +1,11 @@
 # 构建与隔离验收脚本
 
+## v1.9.0 AI 助手与会员二维码
+
+`node scripts/test-ai-assistant.cjs` 检查15项对话、同意、重复提交、失败重试和身份隔离场景；`node scripts/test-member-card.cjs` 检查13项二维码生成、过期、权限、迟到响应和绘制边界，均已纳入 `npm --prefix frontend run test:regression`。`node scripts/test-demo-runtime.mjs` 检查浏览器样例数据及新增 AI／会员码分支。后端 `mvnw.cmd test` 包括本机 HTTP 模型协议测试 AiAssistantTests 和内存数据库核验测试 MemberCardTests，不需要真实模型密钥。
+
+先构建 `npm --prefix frontend run build:demo`，再执行 `node scripts/test-demo-browser.cjs` 验收 Pages 子路径、AI 示例、会员二维码、拍照与身份切换。浏览器驱动可用 `SHUYANG_PLAYWRIGHT_MODULE` 指向已安装的 Playwright。部署与边界见[功能文档](../docs/AI助手与会员二维码-v1.9.0.md)。
+
 ## v1.7.0 置顶、热帖与广播回归
 
 从根目录运行 `node scripts/test-broadcast-forum.cjs`，共 21 项，已纳入 Web 的 `npm run test:regression`。在 backend 目录运行 `mvnw.cmd -Dtest=BroadcastForumTests test`，共 14 项；发布前运行完整 `mvnw.cmd package`。覆盖权限、板块边界、隐藏清理、时间边界、音频归属与访问、并发版本冲突、重复提交及 H5／小程序音频生命周期。

@@ -47,7 +47,40 @@ export async function demoRequest(state, request) {
     return rows;
   };
   const body = read || path === '/media/upload' ? {} : await request.json().catch(() => ({}));
+  if (path === '/ai/status' && read) { member();return { available: true, demo: true, message: '本机示例已就绪，不连接真实模型', maxInput: 2000 }; }
+  if (path === '/ai/messages' && method === 'POST') {
+    member();
+    if (body.consent !== true) fail('请先确认本机示例体验');
+    const rows = body.messages;
+    if (!Array.isArray(rows) || !rows.length || rows.length > 9 || rows.length % 2 === 0) fail('对话过长或顺序无效，请新建对话');
+    let total = 0;
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i], role = i % 2 === 0 ? 'user' : 'assistant';
+      if (!row || row.role !== role || typeof row.content !== 'string' || !row.content.trim() || row.content.trim().length > (role === 'user' ? 2000 : 6000)) fail('对话格式或长度无效');
+      total += row.content.trim().length;
+    }
+    if (total > 16000) fail('对话内容过长，请新建对话');
+    const question = rows[rows.length - 1].content;
+    let content = '这是本机固定示例，未调用真实 AI。可以体验活动报名指引、活动邀请模板、拍照与表情说明、互助信息草稿。完整部署配置模型服务后，才能回答自由问题。';
+    if (/报名|进度/.test(question)) content = '示例指引：进入「乡情活动」查看活动详情，选择报名；在「我的事项」查看报名状态。若需取消，请在活动开始前操作并核对结果。本助手没有读取你的实际报名记录。';
+    else if (/邀请/.test(question)) content = '活动邀请示例（请核实后发布）：\n亲爱的老乡们，欢迎参加【活动名称】！\n时间：【日期与时间】\n地点：【地点】\n安排：【活动内容】\n费用：【费用说明】\n报名方式：【报名入口与截止日期】\n期待与大家相聚，共叙乡情。';
+    else if (/照片|拍照|表情/.test(question)) content = '示例指引：在论坛、聊天或有管理权限的相册中点击「拍照」，允许摄像头访问，预览并确认后上传。聊天中打开表情面板选择表情，再点击发送。照片上传后仍需确认发帖、发送或添加到相册。';
+    else if (/互助|草稿/.test(question)) content = '互助信息示例：\n标题：【简明说明需求】\n所在区域：【大致区域】\n需要的帮助：【具体需求】\n有效时间：【期限】\n补充说明：【已尝试的办法】\n请勿在公开内容中填写身份证、密码或详细住址。核实后到「老乡互助」自行提交审核。';
+    return { content, demo: true, truncated: false };
+  }
   if (path === '/demo/reset' && method === 'POST') return { reset: true };
+  if (path === '/membership/card-code' && method === 'POST') {
+    const user=member();if(!user.memberNo)fail('会员编号尚未生成');
+    const code='SYH-MEMBER:'+Array.from(crypto.getRandomValues(new Uint8Array(24)),n=>n.toString(16).padStart(2,'0').toUpperCase()).join('');
+    state.memberCards ||= {};state.memberCards[user.id]={code,expiresAt:new Date(Date.now()+600000).toISOString()};
+    return {...state.memberCards[user.id],serverNow:now(),demo:true};
+  }
+  if (path === '/membership/verify-card' && method === 'POST') {
+    admin();if(typeof body.code!=='string'||!/^SYH-MEMBER:[A-F0-9]{48}$/.test(body.code))fail('请扫描沭阳之家电子会员卡二维码');
+    const pair=Object.entries(state.memberCards||{}).find(([,card])=>card.code===body.code&&Date.parse(card.expiresAt)>Date.now());
+    const user=pair&&state.users.find(u=>u.id===pair[0]);if(!user||user.status!=='approved'||!user.enabled||user.mustChangePassword)fail('会员码已失效，请刷新后重试');
+    return {name:user.name,memberNo:user.memberNo,status:user.status,verifiedAt:now(),demo:true};
+  }
   if (path === '/auth/me') return actor || fail('请在顶部选择演示身份');
   if (path === '/auth/logout') return {};
   if (path === '/auth/login') {
