@@ -26,7 +26,8 @@ public class AiAssistantService {
         + "拍照确认后才上传，发帖、发送聊天、添加相册和保存商品均需用户再确认。聊天支持文字、图片、文件、表情包及两分钟内撤回。"
         + "家乡特产在线下单、人工确认、线下结算，平台不在线扣款。我的事项汇总业务进度；业务通知记录变更。"
         + "管理员在管理工作台处理会员、内容、订单和全站文字及语音广播；文件中心按权限导入、导出和打印。"
-        + "换肤提供经典、竹青、暖金、夜间与跟随系统。请将人名、号码等私人信息替换为占位符。AI回复可能有误，应由用户核实后使用。";
+        + "会员中心可出示有效10分钟的会员二维码，刷新使旧码失效；工作人员在会员中心扫码核验，不代替活动签到。"
+        + "换肤提供简洁商务、竹青、温暖乡情、深色与跟随系统。请将人名、号码等私人信息替换为占位符。AI回复可能有误，应由用户核实后使用。";
 
     public AiAssistantService(ObjectMapper json, @Value("${shuyang.ai.enabled:false}") boolean enabled,
         @Value("${shuyang.ai.base-url:}") String baseUrl, @Value("${shuyang.ai.api-key:}") String key,

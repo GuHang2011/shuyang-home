@@ -1,21 +1,21 @@
 /* Browser element selectors are excluded from mini-program WXSS. */
 
-.custom-skin body{background:var(--skin-bg)!important;color:var(--skin-text)!important}
-.custom-skin h1,.custom-skin h2,.custom-skin h3,.custom-skin h4,.custom-skin .brand strong{color:var(--skin-text)!important}
-.custom-skin p,.custom-skin small{color:var(--skin-muted)!important}.custom-skin .login-help a{color:var(--skin-primary)!important}.custom-skin .broadcast-heading strong{color:var(--skin-text)!important}.custom-skin .brand small{color:var(--skin-accent)!important}
-.custom-skin th{background:var(--skin-soft)!important;color:var(--skin-text)!important}.custom-skin td{color:var(--skin-text)!important;border-color:var(--skin-border)!important}
-.custom-skin .hero h2,.custom-skin .hero p,.custom-skin .hero small,.custom-skin .membership-card h2,.custom-skin .membership-card p{color:#f4f1e7!important}.appearance-dialog h2{font-size:22px}.appearance-dialog p{font-size:13px;line-height:1.8;margin-top:8px;color:var(--skin-muted)}.appearance-option strong{display:block;color:var(--skin-text)!important}.appearance-option small{display:block;font-size:12px;color:var(--skin-muted)!important;margin-top:4px}@media(max-width:600px){.appearance-dialog h2{font-size:19px}}
-.custom-skin .source-album h3,.custom-skin .source-album p,.custom-skin .source-album small{color:#f4f1e7!important}
+.skin-surface body{background:var(--skin-bg)!important;color:var(--skin-text)!important}
+.skin-surface h1,.skin-surface h2,.skin-surface h3,.skin-surface h4,.skin-surface .brand strong{color:var(--skin-text)!important}
+.skin-surface p,.skin-surface small{color:var(--skin-muted)!important}.skin-surface .login-help a{color:var(--skin-primary)!important}.skin-surface .broadcast-heading strong{color:var(--skin-text)!important}.skin-surface .brand small{color:var(--skin-accent)!important}
+.skin-surface th{background:var(--skin-soft)!important;color:var(--skin-text)!important}.skin-surface td{color:var(--skin-text)!important;border-color:var(--skin-border)!important}
+.skin-surface .hero h2,.skin-surface .hero p,.skin-surface .hero small,.skin-surface .membership-card h2,.skin-surface .membership-card p{color:#f4f1e7!important}.appearance-dialog h2{font-size:22px}.appearance-dialog p{font-size:13px;line-height:1.8;margin-top:8px;color:var(--skin-muted)}.appearance-option strong{display:block;color:var(--skin-text)!important}.appearance-option small{display:block;font-size:12px;color:var(--skin-muted)!important;margin-top:4px}@media(max-width:600px){.appearance-dialog h2{font-size:19px}}
+.skin-surface .source-album h3,.skin-surface .source-album p,.skin-surface .source-album small{color:#f4f1e7!important}
 
-.custom-skin .quick-grid b,.custom-skin .community-links b,.custom-skin .impact-strip strong,.custom-skin .weather-now strong,.custom-skin .weather-days b{color:var(--skin-text)!important}
+.skin-surface .quick-grid b,.skin-surface .community-links b,.skin-surface .impact-strip strong,.skin-surface .weather-now strong,.skin-surface .weather-days b{color:var(--skin-text)!important}
 
-.custom-skin select{background:var(--skin-input)!important;color:var(--skin-text)!important;border-color:var(--skin-border)!important}
+.skin-surface select{background:var(--skin-input)!important;color:var(--skin-text)!important;border-color:var(--skin-border)!important}
 
 .skin-night .brand img{mix-blend-mode:normal}
 
 
 /* Secondary surfaces keep text readable when existing modules opt into a palette. */
-.custom-skin .empty{background:var(--skin-surface)!important;border-color:var(--skin-border)!important;color:var(--skin-text)!important}
-.custom-skin .image-id-list span{background:var(--skin-soft)!important;border-color:var(--skin-border)!important;color:var(--skin-text)!important}
-.custom-skin .impact-strip span,.custom-skin .impact-strip>div{color:var(--skin-text)!important}
-.custom-skin .weather-days span,.custom-skin .services-heading>span{color:var(--skin-muted)!important}
+.skin-surface .empty{background:var(--skin-surface)!important;border-color:var(--skin-border)!important;color:var(--skin-text)!important}
+.skin-surface .image-id-list span{background:var(--skin-soft)!important;border-color:var(--skin-border)!important;color:var(--skin-text)!important}
+.skin-surface .impact-strip span,.skin-surface .impact-strip>div{color:var(--skin-text)!important}
+.skin-surface .weather-days span,.skin-surface .services-heading>span{color:var(--skin-muted)!important}

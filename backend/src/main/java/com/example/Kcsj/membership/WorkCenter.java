@@ -14,7 +14,7 @@ public class WorkCenter {
     public WorkCenter(MemberStore store,MemberAuth auth,ForumPolicy forum){this.store=store;this.auth=auth;this.forum=forum;}
     public static final Map<String,String> KINDS=new LinkedHashMap<>();
     static {
-        KINDS.put("user","入会申请");KINDS.put("signup","活动报名");KINDS.put("post","互助信息");KINDS.put("order","特产订单");
+        KINDS.put("life_entry","生活服务");KINDS.put("user","入会申请");KINDS.put("signup","活动报名");KINDS.put("post","互助信息");KINDS.put("order","特产订单");
         KINDS.put("exchange","资源交换");KINDS.put("contact_exchange","联系方式交换");KINDS.put("crowd_pledge","爱心认领");
         KINDS.put("event_proposal","活动申请");KINDS.put("forum_topic","论坛主题");KINDS.put("forum_reply","论坛回帖");
         KINDS.put("resource","资源发布");KINDS.put("advertisement","合作广告");KINDS.put("crowd_project","众筹项目");
@@ -29,11 +29,13 @@ public class WorkCenter {
         if(manage) {
             if(!approved(a))return false;
             if(kind.startsWith("forum_"))return forum.moderates(a,board(kind,r));
+            if(kind.equals("life_entry"))return auth.isStaff(a);
             if(kind.equals("order"))return auth.isAdmin(a);
             return auth.isStaff(a)&&Arrays.asList("user","post","event_proposal","resource","advertisement","crowd_project").contains(kind);
         }
         if(kind.equals("user"))return s(r,"id").equals(s(a,"id"));
         if(!approved(a))return false;
+        if(kind.equals("life_entry"))return lifeLinked(r,a);
         if(kind.equals("signup"))return mine(r,a,"userId");
         if(kind.equals("order"))return mine(r,a,"buyerId");
         if(kind.equals("exchange"))return mine(r,a,"ownerId","requesterId");
@@ -41,6 +43,13 @@ public class WorkCenter {
         if(kind.equals("crowd_pledge"))return mine(r,a,"supporterId");
         if(kind.startsWith("forum_"))return mine(r,a,"authorId")&&forum.canRead(a,board(kind,r));
         return mine(r,a,"authorId");
+    }
+    private boolean lifeReadable(Map<String,Object> r,Map<String,Object> a){return mine(r,a,"ownerId")||auth.isStaff(a)||LifeRules.publicState(r)&&LifeRules.parentVisible(store,r,a);}
+    private boolean lifeLinked(Map<String,Object> r,Map<String,Object> a){
+        if(mine(r,a,"ownerId"))return true;
+        for(String k:Arrays.asList("life_application","life_subscription","life_checklist","life_meeting"))
+            for(Map<String,Object> link:store.all(k))if(s(link,"entryId").equals(s(r,"id"))&&mine(link,a,"userId")&&(!k.equals("life_subscription")||b(link,"active")))return true;
+        return store.all("business_notice").stream().anyMatch(n->s(n,"kind").equals("life_entry")&&s(n,"targetId").equals(s(r,"id"))&&mine(n,a,"recipientId"));
     }
     private boolean pending(String kind,Map<String,Object> r) {
         if(kind.equals("order"))return Arrays.asList("pending","confirmed").contains(s(r,"status"));
@@ -57,6 +66,16 @@ public class WorkCenter {
     }
     private String section(String kind,Map<String,Object> r,Map<String,Object> a) {
         String status=s(r,"status");
+        if(kind.equals("life_entry")){
+            if(!lifeReadable(r,a)||LifeRules.expired(r)||Arrays.asList("resolved","closed").contains(status))return "done";
+            boolean owner=mine(r,a,"ownerId");
+            if(status.equals("pending"))return "waiting";
+            if(status.equals("confirming"))return owner?"action":"waiting";
+            if(status.equals("rejected"))return owner?"action":"done";
+            if(status.equals("working"))return owner?"waiting":"action";
+            if(owner&&store.all("life_application").stream().anyMatch(x->s(x,"entryId").equals(s(r,"id"))&&s(x,"status").equals("submitted")))return "action";
+            return "upcoming";
+        }
         if(kind.equals("user"))return status.equals("rejected")?"action":status.equals("pending")?"waiting":"done";
         if(kind.equals("signup")){Map<String,Object> event=related("event",s(r,"eventId"));return event.isEmpty()||s(event,"status").equals("cancelled")||Arrays.asList("cancelled","checked_in").contains(status)||before(s(event,"endsAt"))?"done":"upcoming";}
         if(kind.equals("post")) {
@@ -76,6 +95,7 @@ public class WorkCenter {
     }
     private Map<String,Object> item(String kind,Map<String,Object> r,Map<String,Object> a,boolean manage) {
         String title=s(r,"title"),state=s(r,"status"),deadline="";
+        if(kind.equals("life_entry")){if(!lifeReadable(r,a)){title="服务内容暂不可用";state="unavailable";}else if(LifeRules.expired(r))state="expired";else if(state.equals("open"))state="可参与";else if(state.equals("working"))state="处理中";else if(state.equals("confirming"))state="待求助者确认";}
         if(kind.equals("user"))title=manage?s(r,"name")+"的入会申请":"我的入会申请";
         if(kind.equals("signup")){Map<String,Object> event=related("event",s(r,"eventId"));title=event.isEmpty()?"关联活动已不可用":s(event,"title");deadline=s(event,"startsAt");if(event.isEmpty())state="unavailable";else if(state.equals("registered")&&before(s(event,"endsAt")))state="活动已结束";}
         if(kind.equals("post")&&state.equals("approved"))state=s(r,"draftStatus").equals("pending")?"修改待审核":s(r,"draftStatus").equals("rejected")?"修改已退回":HelpPostState.state(r);
@@ -110,6 +130,12 @@ public class WorkCenter {
         if(!permitted(kind,r,actor,manage))throw new ApiException(404,"事项不存在或你已无权查看");
         Map<String,Object> result=item(kind,r,actor,manage),display=new LinkedHashMap<>(r);
         List<Map<String,Object>> fields=new ArrayList<>(),actions=new ArrayList<>();String status=s(r,"status");
+        if(kind.equals("life_entry")){
+            result.put("navigate","life");result.put("lifeTab",lifeReadable(r,actor)?"":"tasks");
+            if(lifeReadable(r,actor)){field(fields,"地区",r.get("region"));field(fields,"内容",r.get("content"));}
+            else field(fields,"说明","内容正在审核或已撤下。已有申请可在生活服务中撤回。");
+            result.put("fields",fields);result.put("actions",actions);result.put("manage",manage);return result;
+        }
         if(kind.equals("post")&&manage&&s(r,"draftStatus").equals("pending")){display.putAll((Map<String,Object>)r.get("editDraft"));field(fields,"本次审核","发布者提交的修改；审核通过前公开内容保持原版本");result.put("title",s(display,"title"));}
         if(kind.equals("user")){for(String[] f:new String[][]{{"name","姓名"},{"hometown","家乡"},{"district","现居地"},{"industry","行业"},{"bio","介绍"},{"reviewNote","审核说明"}})field(fields,f[1],r.get(f[0]));if(!manage)result.put("navigate","profile");}
         else if(kind.equals("signup")){

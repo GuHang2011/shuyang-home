@@ -2,11 +2,11 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 export const appearanceKey = 'shuyang_home_appearance';
 export const appearances = [
-  { id: 'classic', name: '经典', description: '熟悉的蓝金配色' },
+  { id: 'classic', name: '简洁商务', description: '白色、浅灰与蓝色' },
   { id: 'forest', name: '竹青', description: '清爽的绿色界面' },
-  { id: 'amber', name: '暖金', description: '温暖的米金色界面' },
-  { id: 'night', name: '夜间', description: '柔和的深色界面' },
-  { id: 'system', name: '跟随系统', description: '自动切换经典与夜间' }
+  { id: 'amber', name: '温暖乡情', description: '米白、深蓝与暖金，熟悉的乡情' },
+  { id: 'night', name: '深色', description: '柔和的深色界面' },
+  { id: 'system', name: '跟随系统', description: '自动切换浅色与深色' }
 ] as const;
 export type Appearance = typeof appearances[number]['id'];
 export type Skin = Exclude<Appearance, 'system'>;

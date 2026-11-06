@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createDemoState, demoRequest } from '../frontend/demo/demo-runtime.mjs';
+import { demoBlobResponse } from '../frontend/demo/demo-extensions.mjs';
 const call = (state, path, method = 'GET', body, actor = 'demo-member') => demoRequest(state, new Request('https://demo.invalid/api' + path, { method, headers: { Authorization: 'Bearer ' + actor, ...(body instanceof FormData ? {} : { 'Content-Type': 'application/json' }) }, body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body) }));
 test('AI demo is explicitly labeled and never changes stored business data', async () => {
   const state=createDemoState(), before=structuredClone(state);assert.equal((await call(state,'/ai/status')).demo,true);
@@ -67,4 +68,46 @@ test('work summary matches the local pending list and allows review', async () =
   const list = await call(state, '/work/items?manage=true', 'GET', undefined, 'demo-admin');assert.equal(list.total, summary.pending);
   const detail = await call(state, '/work/target?manage=true&kind=user&id=demo-pending', 'GET', undefined, 'demo-admin');
   await call(state, detail.actions[0].url, 'POST', detail.actions[0].body, 'demo-admin');assert.equal((await call(state, '/work/summary', 'GET', undefined, 'demo-admin')).pending, 0);
+});
+
+test('address notes remain private and withdrawing visibility hides contact data', async () => {
+  const state = createDemoState();
+  await call(state, '/address-book/demo-admin', 'PUT', { group: '乡友', note: '只给自己看的备注', favorite: true });
+  const own = await call(state, '/address-book');assert.equal(own[0].note, '只给自己看的备注');assert.equal(own[0].phone, undefined);
+  const other = await call(state, '/address-book', 'GET', undefined, 'demo-admin');assert.ok(!JSON.stringify(other).includes('只给自己看的备注'));
+  state.users[1].directoryVisible = false;
+  const hidden = (await call(state, '/address-book'))[0];assert.equal(hidden.available, false);assert.equal(hidden.name, '联系人暂不可用');assert.equal(hidden.note, own[0].note);
+  await assert.rejects(call(state, '/address-book', 'GET', undefined, 'guest'));
+});
+
+test('public display tracks signup aggregates and never exposes private profiles', async () => {
+  const state = createDemoState();await call(state, '/events/demo-event/signup', 'POST');state.signups[0].status = 'checked_in';state.signups[0].hours = 2;
+  const data = await call(state, '/display', 'GET', undefined, 'guest');assert.equal(data.hours, 2);assert.equal(data.slides.length, 2);assert.equal(data.months.length, 6);assert.ok(!JSON.stringify(data).includes('13800000001'));
+  state.events[0].status = 'draft';assert.equal((await call(state, '/display')).hours, 0);
+});
+
+test('display upload requires admin and publication consent, withdrawal revokes guest access', async () => {
+  const state = createDemoState(), file = new FormData();file.set('scope', 'display');file.set('file', new Blob(['demo video'], { type: 'video/mp4' }), 'demo.mp4');
+  await assert.rejects(call(state, '/media/upload', 'POST', file));
+  const media = await call(state, '/media/upload', 'POST', file, 'demo-admin');assert.equal(media.type, 'video');
+  await assert.rejects(call(state, '/media/' + media.id, 'GET', undefined, 'guest'));
+  const body = { title: '演示视频', mediaId: media.id, position: 0, seconds: 10, status: 'published' };
+  await assert.rejects(call(state, '/display/slides', 'POST', body, 'demo-admin'));
+  const slide = await call(state, '/display/slides', 'POST', { ...body, consent: true }, 'demo-admin');
+  assert.ok(await call(state, '/media/' + media.id, 'GET', undefined, 'guest') instanceof Blob);
+  await call(state, '/display/slides/' + slide.id, 'DELETE', undefined, 'demo-admin');
+  await assert.rejects(call(state, '/media/' + media.id, 'GET', undefined, 'guest'));
+});
+
+test('video byte ranges support seeking and reject unsatisfiable requests', async () => {
+  const blob = new Blob(['0123456789'], { type: 'video/mp4' });
+  const response = demoBlobResponse(blob, 'bytes=2-5');assert.equal(response.status, 206);assert.equal(await response.text(), '2345');assert.equal(response.headers.get('Content-Range'), 'bytes 2-5/10');
+  assert.equal(await demoBlobResponse(blob, 'bytes=-3').text(), '789');assert.equal(demoBlobResponse(blob, 'bytes=20-30').status, 416);assert.equal(demoBlobResponse(blob, 'bytes=-0').status, 416);
+});
+
+test('guide checklist is per member and filters unknown items', async () => {
+  const state = createDemoState(), guide = (await call(state, '/life/entries?type=guide'))[0];
+  await call(state, '/life/entries/' + guide.id + '/checklist', 'POST', { checked: [guide.checklist[0], 'unknown'] });
+  assert.equal((await call(state, '/life/entries/' + guide.id + '/checklist')).checked.length, 1);
+  assert.deepEqual((await call(state, '/life/entries/' + guide.id + '/checklist', 'GET', undefined, 'demo-admin')).checked, []);
 });

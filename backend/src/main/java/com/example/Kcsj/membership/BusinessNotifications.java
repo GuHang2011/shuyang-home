@@ -20,15 +20,21 @@ public class BusinessNotifications {
         store.save("business_notice",map("id",id,"recipientId",recipient,"message",message,"kind",kind,"targetId",target,
             "createdAt",now(),"sequence",store.nextNotificationSequence(),"read",false));
     }
+    public void life(String recipient,String target,String event,String message) {
+        String id=UUID.nameUUIDFromBytes(("life|"+recipient+"|"+target+"|"+event).getBytes(StandardCharsets.UTF_8)).toString();
+        if(store.all("business_notice").stream().anyMatch(n->s(n,"id").equals(id)))return;
+        store.save("business_notice",map("id",id,"recipientId",recipient,"message",message,"kind","life_entry","targetId",target,
+            "createdAt",now(),"sequence",store.nextNotificationSequence(),"read",false));
+    }
     @EventListener public void changed(BusinessChange e) {
         Map<String,Object> r=e.after;String id=s(r,"id"),state=s(r,"status");
         if(e.kind.equals("user")) {
             if(!e.before.isEmpty()&&changed(e,"status")&&Arrays.asList("approved","rejected").contains(state))
                 send(e,id,state.equals("approved")?"你的入会申请已通过":"你的入会申请已退回，请查看原因","user",id);
         } else if(e.kind.equals("event")) {
-            if(!e.before.isEmpty()&&(changed(e,"location")||changed(e,"status")&&state.equals("cancelled")))
+            if(!e.before.isEmpty()&&(changed(e,"location")||changed(e,"startsAt")||changed(e,"endsAt")||changed(e,"status")&&state.equals("cancelled")))
                 for(Map<String,Object> signup:store.all("signup"))if(s(signup,"eventId").equals(id)&&!s(signup,"status").equals("cancelled"))
-                    send(e,s(signup,"userId"),state.equals("cancelled")?"你报名的活动已取消":"你报名活动的集合地点已更新","signup",s(signup,"id"));
+                    send(e,s(signup,"userId"),state.equals("cancelled")?"你报名的活动已取消":"你报名活动的时间或集合地点已更新","signup",s(signup,"id"));
         } else if(e.kind.equals("signup")) {
             if(changed(e,"status")) {
                 Map<String,Object> event=store.get("event",s(r,"eventId"));

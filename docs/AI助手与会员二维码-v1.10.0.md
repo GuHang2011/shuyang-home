@@ -1,4 +1,4 @@
-# AI 助手与电子会员卡二维码 · v1.9.0
+# AI 助手与电子会员卡二维码 · v1.10.0
 
 ## 使用方式
 
@@ -48,6 +48,6 @@ SHUYANG_AI_API_KEY=your-server-only-key
 
 自动测试命令：`node scripts/test-ai-assistant.cjs`、`node scripts/test-member-card.cjs`、`node scripts/test-demo-runtime.mjs`；均已纳入相应回归或发布流程。后端执行 `mvnw.cmd test`（新增 AiAssistantTests 和 MemberCardTests）。浏览器使用本机隔离内存数据库，覆盖宽屏、390／320px，检查示例标识、同意后发送、失败恢复、二维码识别与核验，以及旧码失效。
 
-本轮结果：前端259项、演示数据层15项、后端136项通过；Chromium／Windows WebKit 各15项 Web/H5检查、Pages子路径演示17项检查通过，页面无运行异常。Web／移动端类型检查、Web／H5／小程序／后端与演示版构建通过。另单独确认 H5 发送成功后输入框清空。
+本轮结果：前端277项、演示数据层20项、后端170项通过；Chromium／Windows WebKit 各15项 Web/H5检查、Pages子路径演示19项检查通过，页面无运行异常。Web／移动端类型检查、Web／H5／小程序／后端与演示版构建通过。另单独确认 H5 发送成功后输入框清空。
 
 验收发现并修复：原20秒请求超时不能覆盖较慢模型，单独延长 AI 请求等待；部分合法会员码的图片定位识别失败，增加单色二维码识别回退并恢复扫描器参数；手机320px宽度核验长编号溢出，新增结果换行及输入框尺寸约束。二维码图片实际经过浏览器识别与后端核验，未仅依赖绘制成功断言。

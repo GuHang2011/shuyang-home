@@ -7,7 +7,7 @@ const apiProxyTarget = process.env.VITE_API_PROXY_TARGET?.trim() || 'http://127.
 function demoAssets(): Plugin {
 	return { name: 'isolated-pages-demo', generateBundle() {
 		const version = readFileSync(resolve(__dirname, '../VERSION'), 'utf8').trim();
-		for (const file of ['demo-worker.js', 'demo-runtime.mjs']) this.emitFile({ type: 'asset', fileName: file, source: readFileSync(resolve(__dirname, 'demo', file), 'utf8').replaceAll('__DEMO_VERSION__', version) });
+		for (const file of ['demo-worker.js', 'demo-runtime.mjs', 'demo-extensions.mjs']) this.emitFile({ type: 'asset', fileName: file, source: readFileSync(resolve(__dirname, 'demo', file), 'utf8').replaceAll('__DEMO_VERSION__', version) });
 		this.emitFile({ type: 'asset', fileName: '.nojekyll', source: '' });
 	} };
 }

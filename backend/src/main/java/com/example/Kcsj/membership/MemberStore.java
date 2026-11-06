@@ -29,7 +29,14 @@ public class MemberStore {
         jdbc.update("INSERT INTO syh_write_lock(id) SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM syh_write_lock WHERE id=1)");
         jdbc.execute("CREATE TABLE IF NOT EXISTS syh_security_epoch (id INT PRIMARY KEY, revision BIGINT NOT NULL)");
         jdbc.update("INSERT INTO syh_security_epoch(id,revision) SELECT 1,0 WHERE NOT EXISTS (SELECT 1 FROM syh_security_epoch WHERE id=1)");
-        if(cipher.enabled())jdbc.query("SELECT kind,id,body FROM syh_record WHERE body NOT LIKE 'enc:v1:%'",rs->{String body=rs.getString(3);jdbc.update("UPDATE syh_record SET body=? WHERE kind=? AND id=?",cipher.encode(body),rs.getString(1),rs.getString(2));});
+        if(cipher.enabled()) {
+            // Collect rows first, then update in batch: avoids executing UPDATE while the SELECT cursor is open,
+            // which fails on stricter JDBC drivers once data grows beyond the fetch buffer.
+            List<Map<String,Object>> pending = jdbc.query("SELECT kind,id,body FROM syh_record WHERE body NOT LIKE 'enc:v1:%'",
+                (rs, i) -> map("kind", rs.getString(1), "id", rs.getString(2), "body", rs.getString(3)));
+            for (Map<String,Object> row : pending)
+                jdbc.update("UPDATE syh_record SET body=? WHERE kind=? AND id=?", cipher.encode(s(row,"body")), s(row,"kind"), s(row,"id"));
+        }
     }
     /** Hold the pilot's write lock through transaction commit, including last-admin checks. */
     public void lockWrites() {

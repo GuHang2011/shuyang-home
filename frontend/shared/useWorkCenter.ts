@@ -4,7 +4,7 @@ import { useRequestScope } from './useRequestScope';
 
 type Api = (path: string, method?: string, body?: unknown) => Promise<any>;
 export type WorkMode = 'mine' | 'manage' | 'notices';
-export const workKinds = [{ id: 'all', label: '全部类型' }, ...Object.entries({ user: '入会申请', signup: '活动报名', post: '互助信息', order: '特产订单', exchange: '资源交换', contact_exchange: '联系方式交换', crowd_pledge: '爱心认领', event_proposal: '活动申请', forum_topic: '论坛主题', forum_reply: '论坛回帖', resource: '资源发布', advertisement: '合作广告', crowd_project: '众筹项目' }).map(([id, label]) => ({ id, label }))];
+export const workKinds = [{ id: 'all', label: '全部类型' }, ...Object.entries({ life_entry: '生活服务', user: '入会申请', signup: '活动报名', post: '互助信息', order: '特产订单', exchange: '资源交换', contact_exchange: '联系方式交换', crowd_pledge: '爱心认领', event_proposal: '活动申请', forum_topic: '论坛主题', forum_reply: '论坛回帖', resource: '资源发布', advertisement: '合作广告', crowd_project: '众筹项目' }).map(([id, label]) => ({ id, label }))];
 export const workSections = [{ id: 'all', label: '全部事项' }, { id: 'action', label: '需要我处理' }, { id: 'waiting', label: '等待对方' }, { id: 'upcoming', label: '近期安排' }, { id: 'done', label: '已结束' }];
 export const helpProgress: Record<string, string> = { open: '还需要帮助', helping: '处理中', resolved: '已解决', expired: '已过期', closed: '已关闭' };
 export function useHelpDiscovery(getPosts: () => Row[], getCategory: () => string, getQuery: () => string) {

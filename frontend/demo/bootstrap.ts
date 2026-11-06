@@ -19,7 +19,7 @@ export async function startDemo() {
   const select = bar.querySelector('select')!;select.value = sessionStorage.getItem(actorKey)!;
   select.onchange = () => { setActor(select.value);location.hash = select.value === 'demo-admin' ? 'admin' : 'home';location.reload(); };
   const guide = document.createElement('dialog');guide.className = 'demo-dialog';guide.setAttribute('aria-label', '在线体验指引');
-  guide.innerHTML = '<h2>从这些流程开始体验</h2><ol><li>点击“换肤”，选择竹青、暖金、夜间或跟随系统。</li><li>以会员身份体验活动报名、论坛发帖、聊天表情与拍照、特产下单。</li><li>切换管理员，体验会员及内容审核、相册拍照、商品和广播管理。</li><li>进入 AI 助手体验明确标注的本机示例回复；在会员中心出示会员二维码，切换管理员体验核验。</li></ol><p>数据与附件保存在这个浏览器。不同访客之间不共享，不会发送真实消息、生成真实订单或收款。重置会删除本机演示记录和照片。</p><p>演示账号 demo / admin，密码均为 Demo12345678。扩展业务、文件报表与定位签到请在完整部署版本中验收。</p><button type="button">开始体验</button>';
+  guide.innerHTML = '<h2>从这些流程开始体验</h2><ol><li>点击“换肤”，选择温暖乡情、简洁商务、深色，也可跟随系统。</li><li>以会员身份体验活动报名、论坛发帖、聊天表情与拍照、特产下单。</li><li>切换管理员，体验会员及内容审核、相册拍照、商品和广播管理。</li><li>打开乡情大屏查看图表与插画轮播，管理员可上传照片或MP4视频。</li><li>在乡友通讯录保存分组、星标和私人备注；生活服务可体验指南与个人材料清单。</li><li>进入 AI 助手体验明确标注的本机示例回复；在会员中心出示会员二维码，切换管理员体验核验。</li></ol><p>数据与附件保存在这个浏览器。不同访客之间不共享，不会发送真实消息、生成真实订单或收款。重置会删除本机演示记录和照片。</p><p>演示账号 demo / admin，密码均为 Demo12345678。扩展业务、文件报表与定位签到请在完整部署版本中验收。</p><button type="button">开始体验</button>';
   guide.querySelector('button')!.onclick = () => guide.close();
   bar.querySelector<HTMLButtonElement>('.demo-guide')!.onclick = () => guide.showModal();
   bar.querySelector<HTMLButtonElement>('.demo-reset')!.onclick = async () => {

@@ -27,6 +27,7 @@ import 'element-plus/es/components/tab-pane/style/css';
 import 'element-plus/es/components/table-column/style/css';
 import './element-theme.css';
 import './skins.css';
+import './refined-ui.css';
 const mount = () => createApp({ render: () => h(ElConfigProvider, { locale: zhCn }, { default: () => h(App) }) }).mount('#app');
 if (import.meta.env.MODE === 'demo') {
   import('../demo/bootstrap').then(module => module.startDemo()).then(mount).catch(error => {

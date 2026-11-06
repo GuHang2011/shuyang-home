@@ -15,7 +15,7 @@ public class CorsConfig {
     public CorsFilter corsFilter() {
         CorsConfiguration config=new CorsConfiguration();
         config.setAllowedOrigins(Arrays.asList(origins.split(",")));
-        config.setAllowedMethods(Arrays.asList("GET","POST","PUT","OPTIONS"));
+        config.setAllowedMethods(Arrays.asList("GET","POST","PUT","DELETE","PATCH","OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("Authorization","Content-Type","Idempotency-Key","X-Client-Version"));
         config.setExposedHeaders(Arrays.asList("Content-Disposition","Idempotency-Replayed"));
         config.setMaxAge(3600L);
