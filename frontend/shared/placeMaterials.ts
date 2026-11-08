@@ -13,3 +13,8 @@ export const suzhouReference = {
   source: '苏州市人民政府',
   url: 'https://www.suzhou.gov.cn/szsrmzf/szgl/szgl2025.shtml',
 };
+export const communityCredit = {
+  label: '朋友相聚 · 生活示意',
+  sourceUrl: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18',
+  licenseUrl: 'https://unsplash.com/license',
+};

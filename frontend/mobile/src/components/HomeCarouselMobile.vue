@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { api, baseUrl } from '../platform';
 import gardenPhoto from '../../../shared/assets/suzhou-garden.jpg';
-import { gardenCredit } from '../../../shared/placeMaterials';
+import { gardenCredit, communityCredit } from '../../../shared/placeMaterials';
 import { getCurrentInstance, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useHomeCarousel } from '../../../shared/useHomeCarousel';
 const props = withDefaults(defineProps<{ member?: boolean; foreground?: boolean }>(), { foreground: true });
@@ -37,10 +37,10 @@ function sourceLink(url: string) {
       <swiper-item v-for="(slide, position) in slides" :key="slide.id"><view class="home-banner-slide" :aria-hidden="position !== index">
         <view class="home-banner-photo">
           <image v-if="slide.id === 'memories' && cover && failedCover !== cover" :src="baseUrl() + '/media/' + encodeURIComponent(cover)" mode="aspectFill" aria-label="已发布活动相册封面" @error="failedCover = cover"/>
-          <image v-else :src="gardenPhoto" mode="aspectFill" aria-label="苏州园林中的亭子、白墙与假山"/>
+          <image v-else-if="slide.id === 'gather'" src="/static/community-friends.webp" mode="aspectFill" aria-label="朋友们在户外相聚的生活示意照片"/><image v-else :src="gardenPhoto" mode="aspectFill" aria-label="苏州园林中的亭子、白墙与假山"/>
         </view>
         <view v-if="slide.id === 'memories' && cover && failedCover !== cover" class="home-banner-credit">活动相册 · 管理员发布</view>
-        <view v-else class="home-banner-credit">苏州园林 · 城市风景 <button :tabindex="position === index ? 0 : -1" @click="sourceLink(gardenCredit.sourceUrl)">摄影 SteFou!</button><button :tabindex="position === index ? 0 : -1" @click="sourceLink(gardenCredit.licenseUrl)">CC BY 2.0</button></view>
+        <view v-else-if="slide.id === 'gather'" class="home-banner-credit">{{ communityCredit.label }} <button :tabindex="position === index ? 0 : -1" @click="sourceLink(communityCredit.sourceUrl)">Unsplash</button><button :tabindex="position === index ? 0 : -1" @click="sourceLink(communityCredit.licenseUrl)">使用许可</button></view><view v-else class="home-banner-credit">苏州园林 · 城市风景 <button :tabindex="position === index ? 0 : -1" @click="sourceLink(gardenCredit.sourceUrl)">摄影 SteFou!</button><button :tabindex="position === index ? 0 : -1" @click="sourceLink(gardenCredit.licenseUrl)">CC BY 2.0</button></view>
         <view class="home-banner-copy"><view class="home-banner-title">{{ slide.first }}{{ slide.second }}</view>
           <view class="home-banner-description">{{ slide.description }}<br/>{{ slide.detail }}</view>
           <view class="home-banner-actions"><button :tabindex="position === index ? 0 : -1" class="home-banner-primary" @click="emit('navigate',slide.target)">{{ slide.action }} <text>→</text></button><button :tabindex="position === index ? 0 : -1" class="home-banner-secondary" @click="emit('join')">{{ member ? '我的会员卡' : '申请入会' }}</button></view>

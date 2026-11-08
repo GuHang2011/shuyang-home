@@ -1,5 +1,17 @@
 # 界面截图
 
+## v1.10.2 真实素材首页
+
+[电脑首页](home-materials-desktop-1102.png) · [手机H5首页](home-materials-phone-1102.png) · [深色首页](home-materials-night-1102.png)。
+
+本组为2026-11-09的Chromium页面截图，电脑1440×1080、H5为390×1080。通过页面关闭临时广播与高铁悬浮窗后截取，未修图。业务资料来自隔离演示，照片用途和许可见[素材来源](../素材来源.md)。
+
+## 仓库首页预览
+
+[电脑首页摘要](community-home-overview.png) · [手机首页摘要](community-home-phone-overview.png)。用于v1.10.1仓库首页，裁取v1.10.0已验收界面的首屏区域，未修改页面内容；完整截图见下方生活社区界面章节。
+
+## 截图来源
+
 截图来自本机Edge，移动端为390×844模拟。首页为清空验收数据后的访客视图；其余为隔离内存库验收内容。测试会员、条纹图片、论坛内容、活动及坐标为合成数据，不代表真实会员、活动或商品；没有真实交易。原Alltuu照片未导入。
 
 | 预览 | 说明 |
@@ -51,3 +63,9 @@
 [乡情大屏](display-190.png) · [主题选择](themes-190.png) · [通讯录](contacts-190.png) · [手机通讯录](contacts-phone-190.png) · [手机大屏](display-phone-190.png)。大屏、主题和通讯录截图使用独立在线演示的虚构资料。
 
 [电脑悬浮窗](railway-celebration-desktop.png) · [手机网页悬浮窗](railway-celebration-phone.png) · [H5悬浮窗](railway-celebration-h5.png) · [生活服务H5](life-h5-170.png)。本组来自隔离演示数据，截图中的人员、指南和活动均为验收示例。
+
+## v1.10.0 生活社区界面
+
+- [新版首页](refined-home-110.png)与[手机首页](refined-home-phone-110.png)
+- [生活服务](refined-life-110.png)、[会员资料管理](refined-members-110.png)
+- 采用Airbnb＋飞书参考方向，截图使用隔离环境中的虚构资料；首页相聚照片为已注明的生活示意。

@@ -4,7 +4,7 @@ import { api } from '../api';
 import { useHomeCarousel } from '../../shared/useHomeCarousel';
 import Icon from './Icon.vue';
 import gardenPhoto from '../../shared/assets/suzhou-garden.jpg';
-import { gardenCredit } from '../../shared/placeMaterials';
+import { gardenCredit, communityCredit } from '../../shared/placeMaterials';
 defineProps<{ member?: boolean }>();
 const emit = defineEmits<{ (event: 'navigate', page: string): void; (event: 'join'): void }>();
 const { slides, index, current, paused, hovered, focused, touching, reducedMotion, playing, cover, select, next, previous } = useHomeCarousel(api);
@@ -30,6 +30,7 @@ function blur(event: FocusEvent) { if (!(event.currentTarget as HTMLElement).con
           </div>
           <figure class="carousel-photo">
             <template v-if="slide.id === 'memories' && cover && failedCover !== cover"><img :src="'/api/media/' + encodeURIComponent(cover)" alt="已发布活动相册封面" @error="failedCover = cover"><figcaption>活动相册 · 管理员发布</figcaption></template>
+            <template v-else-if="slide.id === 'gather'"><img src="/brand/community-friends.webp" alt="朋友们在户外相聚的生活示意照片" width="1200" height="800"><figcaption>{{ communityCredit.label }}<br><a :tabindex="index === position ? 0 : -1" :href="communityCredit.sourceUrl" target="_blank" rel="noopener noreferrer">图片来源 Unsplash</a> · <a :tabindex="index === position ? 0 : -1" :href="communityCredit.licenseUrl" target="_blank" rel="noopener noreferrer">使用许可</a></figcaption></template>
             <template v-else><img :src="gardenPhoto" alt="苏州园林中的亭子、白墙与假山" width="474" height="266"><figcaption>{{ gardenCredit.title }} · 城市风景<br><a :tabindex="index === position ? 0 : -1" :href="gardenCredit.sourceUrl" target="_blank" rel="noopener noreferrer">摄影 {{ gardenCredit.author }}</a> · <a :tabindex="index === position ? 0 : -1" :href="gardenCredit.licenseUrl" target="_blank" rel="noopener noreferrer">{{ gardenCredit.license }}</a></figcaption></template>
           </figure>
         </article>

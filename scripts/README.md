@@ -1,5 +1,11 @@
 # 构建与隔离验收脚本
 
+## v1.10.0 AI 助手与会员二维码
+
+`node scripts/test-ai-assistant.cjs` 检查15项对话、同意、重复提交、失败重试和身份隔离场景；`node scripts/test-member-card.cjs` 检查13项二维码生成、过期、权限、迟到响应和绘制边界，均已纳入 `npm --prefix frontend run test:regression`。`node scripts/test-demo-runtime.mjs` 检查浏览器样例数据及新增 AI／会员码分支。后端 `mvnw.cmd test` 包括本机 HTTP 模型协议测试 AiAssistantTests 和内存数据库核验测试 MemberCardTests，不需要真实模型密钥。
+
+先构建 `npm --prefix frontend run build:demo`，再执行 `node scripts/test-demo-browser.cjs` 验收 Pages 子路径、AI 示例、会员二维码、拍照与身份切换。浏览器驱动可用 `SHUYANG_PLAYWRIGHT_MODULE` 指向已安装的 Playwright。部署与边界见[功能文档](../docs/AI助手与会员二维码-v1.10.0.md)。
+
 ## v1.7.0 置顶、热帖与广播回归
 
 从根目录运行 `node scripts/test-broadcast-forum.cjs`，共 21 项，已纳入 Web 的 `npm run test:regression`。在 backend 目录运行 `mvnw.cmd -Dtest=BroadcastForumTests test`，共 14 项；发布前运行完整 `mvnw.cmd package`。覆盖权限、板块边界、隐藏清理、时间边界、音频归属与访问、并发版本冲突、重复提交及 H5／小程序音频生命周期。
@@ -119,3 +125,9 @@ python scripts/summarize-business-files.py --run-prefix retest-20261102
 执行`npm --prefix frontend run build:demo`后运行`node scripts/test-demo-browser.cjs`，脚本启动本机静态服务器，按GitHub Pages仓库子路径验收实际演示包，不需要业务后端。它使用合成摄像头和新的浏览器上下文，检查界面操作、刷新、隔离、重置、320／390px布局以及业务请求不外发。默认使用前端Playwright；`SHUYANG_PLAYWRIGHT_MODULE`可指定已有Playwright模块路径。结果和截图保存在被Git忽略的`output/demo-browser`。
 
 手机／微信真实摄像头仍需设备验收，详情见[本轮功能与验证记录](../docs/换肤拍照与在线演示-v1.8.0.md)。
+
+## v1.10.2 首页素材与布局
+
+先构建Web演示和H5，再运行 `node scripts/test-home-materials.cjs`。脚本使用隔离静态服务器与演示数据，检查三套主题、1440／390／320px、素材载入与署名、公告过滤、轮播控制条和移动swiper高度，不需要业务后端。结果与截图保存在Git忽略的 `output/home-materials`。
+
+默认使用前端安装的Playwright及其Chromium。`SHUYANG_PLAYWRIGHT_MODULE`可指定模块路径；`SHUYANG_CHROMIUM_PATH`可指定本机Chromium可执行文件。`SHUYANG_BROWSER=webkit`改用WebKit，`SHUYANG_WEBKIT_PATH`可指定已安装内核，输出写入独立的 `output/home-materials-webkit`。`test-demo-browser.cjs`也支持 `SHUYANG_CHROMIUM_PATH`。

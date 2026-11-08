@@ -1,19 +1,19 @@
 @import '../../shared/skins.css';
 .skin-surface.page{min-height:100vh;box-sizing:border-box}
-.custom-skin .uni-input-input,.custom-skin .uni-textarea-textarea{background:transparent!important}
-.custom-skin .chat-bubble{background:var(--skin-soft)!important;color:var(--skin-text)!important;border-color:var(--skin-border)!important}
-.custom-skin .appearance-option{background:var(--skin-surface)!important;color:var(--skin-text)!important}
+.skin-surface .uni-input-input,.skin-surface .uni-textarea-textarea{background:transparent!important}
+.skin-surface .chat-bubble{background:var(--skin-soft)!important;color:var(--skin-text)!important;border-color:var(--skin-border)!important}
+.skin-surface .appearance-option{background:var(--skin-surface)!important;color:var(--skin-text)!important}
 
-.custom-skin .mobile-album,.custom-skin .mobile-photo-wall>view{background:var(--skin-surface)!important;border-color:var(--skin-border)!important;color:var(--skin-text)!important}
-.custom-skin .mobile-photo-wall text{color:var(--skin-text)!important}
-.custom-skin .album-placeholder,.custom-skin .private-image,.custom-skin .photo-invite{background:var(--skin-soft)!important;color:var(--skin-muted)!important}
+.skin-surface .mobile-album,.skin-surface .mobile-photo-wall>view{background:var(--skin-surface)!important;border-color:var(--skin-border)!important;color:var(--skin-text)!important}
+.skin-surface .mobile-photo-wall text{color:var(--skin-text)!important}
+.skin-surface .album-placeholder,.skin-surface .private-image,.skin-surface .photo-invite{background:var(--skin-soft)!important;color:var(--skin-muted)!important}
 
-.custom-skin .chat-room,.custom-skin .chat-conversation{background:var(--skin-surface)!important;border-color:var(--skin-border)!important}
-.custom-skin .chat-history{background:var(--skin-bg)!important}
-.custom-skin .chat-conversation-text>text,.custom-skin .chat-name,.custom-skin .chat-return{color:var(--skin-text)!important}
-.custom-skin .chat-message-meta,.custom-skin .chat-status,.custom-skin .chat-conversation-text>view,.custom-skin .chat-recall{color:var(--skin-muted)!important}
-.custom-skin .chat-upload-bar button{background:var(--skin-soft)!important;color:var(--skin-text)!important}
-.custom-skin .chat-pending{color:var(--skin-primary)!important}
-.custom-skin .mine .chat-bubble{background:var(--skin-primary)!important;color:var(--skin-on-primary)!important}
+.skin-surface .chat-room,.skin-surface .chat-conversation{background:var(--skin-surface)!important;border-color:var(--skin-border)!important}
+.skin-surface .chat-history{background:var(--skin-bg)!important}
+.skin-surface .chat-conversation-text>text,.skin-surface .chat-name,.skin-surface .chat-return{color:var(--skin-text)!important}
+.skin-surface .chat-message-meta,.skin-surface .chat-status,.skin-surface .chat-conversation-text>view,.skin-surface .chat-recall{color:var(--skin-muted)!important}
+.skin-surface .chat-upload-bar button{background:var(--skin-soft)!important;color:var(--skin-text)!important}
+.skin-surface .chat-pending{color:var(--skin-primary)!important}
+.skin-surface .mine .chat-bubble{background:var(--skin-primary)!important;color:var(--skin-on-primary)!important}
 
-.custom-skin .home-chat-link>view:nth-child(2){color:var(--skin-text)!important}.custom-skin .home-chat-link>view:nth-child(2)>text{color:var(--skin-muted)!important}
+.skin-surface .home-chat-link>view:nth-child(2){color:var(--skin-text)!important}.skin-surface .home-chat-link>view:nth-child(2)>text{color:var(--skin-muted)!important}

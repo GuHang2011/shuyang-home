@@ -68,7 +68,7 @@ export function api<T = any>(path: string, method = 'GET', body?: unknown): Prom
   return new Promise((resolve, reject) => {
     let base: string;
     try { base = baseUrl(); } catch (e) { reject(e); return; }
-    uni.request({ url: base + path, method: method as any, data: body as any, timeout: 20000,
+    uni.request({ url: base + path, method: method as any, data: body as any, timeout: path === '/ai/messages' ? 45000 : 20000,
       header: { 'Content-Type': 'application/json', ...(requestToken ? { Authorization: 'Bearer ' + requestToken } : {}) },
       success: response => {
         if (response.statusCode === 401 && requestToken && requestToken === getToken()) { setToken('');uni.$emit('session-expired'); }

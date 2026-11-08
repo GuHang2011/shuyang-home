@@ -22,3 +22,5 @@ onLaunch(() => {});
 <style src="./ui-polish.css"></style>
 <style src="./skins.css"></style>
 <style>.feature-mobile-nav{display:flex;justify-content:space-between;margin-bottom:20rpx}</style>
+
+<style src="./refined-ui.css"></style>

@@ -1,0 +1,32 @@
+/* Restrained accents keep service areas recognizable without changing theme preferences. */
+.skin-surface{--refined-green:#236c58;--refined-green-bg:#eaf3ee;--refined-gold:#835d26;--refined-gold-bg:#f7f0e3;--refined-blue-bg:#edf3fa}
+.skin-night{--refined-green:#a0d8bc;--refined-green-bg:#233831;--refined-gold:#e1c28d;--refined-gold-bg:#393226;--refined-blue-bg:#263345}
+.skin-surface .work-kicker,.skin-surface .feature-kicker,.skin-surface .life-eyebrow{display:none}
+.skin-surface .work-hub,.skin-surface .feature-card,.skin-surface .life-card{background:var(--skin-surface);border:1px solid var(--skin-border);border-radius:16px;box-shadow:none;color:var(--skin-text)}
+.skin-surface .life-hero{background:var(--refined-green-bg);border:0;border-radius:16px;padding:30px;color:var(--refined-green)}
+.skin-surface .life-hub .life-hero .life-h2{font-size:32px;color:var(--refined-green)!important;font-weight:600;line-height:1.35;margin:0 0 14px}
+.skin-surface .life-hub .life-font{background:var(--skin-surface);border-color:var(--skin-border);color:var(--skin-text);font-size:14px!important}
+.skin-surface .life-tabs button,.skin-surface .life-categories button{background:var(--skin-surface);color:var(--skin-text);border-color:var(--skin-border);border-radius:10px}
+.skin-surface .life-tabs button.active,.skin-surface .life-categories button.active{background:var(--refined-green-bg);color:var(--refined-green);border-color:var(--refined-green)}
+.skin-surface .life-categories button>span,.skin-surface .life-categories button>text{color:var(--refined-green)}
+.skin-surface .life-categories button:nth-child(3n+2)>span,.skin-surface .life-categories button:nth-child(3n+2)>text{color:var(--refined-gold)}
+.skin-surface .life-categories button:nth-child(3n)>span,.skin-surface .life-categories button:nth-child(3n)>text{color:var(--skin-primary)}
+.skin-surface .life-empty,.skin-surface .life-inset,.skin-surface .life-join{background:var(--skin-surface);color:var(--skin-muted);border-color:var(--skin-border)}
+.skin-surface .life-hub .life-h3,.skin-surface .life-hub .life-h4{color:var(--skin-text)}
+.skin-surface .life-hub.life-large .life-h2{font-size:36px}
+.skin-surface .membership-card{background:#243e50!important;color:#fff!important;border:0!important}
+.skin-surface .membership-card .card-status{border:1px solid #ffffff66!important;background:transparent!important}
+.skin-surface .membership-card .meta,.skin-surface .membership-card text{color:#fff!important}
+.skin-surface .my-stats strong,.skin-surface .price{font-family:var(--font-ui);font-weight:600;color:var(--skin-primary)}
+.skin-surface .my-stats>div:nth-child(2) strong{color:var(--refined-green)}.skin-surface .my-stats>div:nth-child(3) strong{color:var(--refined-gold)}
+.skin-surface .avatar,.skin-surface .people-avatar{background:var(--refined-green-bg);color:var(--refined-green);font-family:var(--font-ui)}
+.skin-surface .work-entry{border-left:3px solid var(--refined-green)}
+.skin-surface .display-stage{background:#1e2e3b;border-color:#344956;box-shadow:none;border-radius:16px}
+.skin-surface .display-stat{background:#283c4b;border-color:#405565}.skin-surface .display-stat strong{color:#d8c599}
+.skin-surface .close-button{background:var(--skin-soft);color:var(--skin-muted)}
+@media(max-width:700px){.skin-surface .life-hero{padding:24px 20px;gap:14px;flex-wrap:wrap}.skin-surface .life-hub .life-hero .life-h2{font-size:28px}.skin-surface .life-hub.life-large .life-h2{font-size:32px}}
+/* H5 loads page-scoped styles after the app stylesheet. Keep these surfaces consistent. */
+.skin-surface .life-hub .life-hero{background:var(--refined-green-bg)!important;border:0!important;color:var(--refined-green)}
+.skin-surface .life-hub .life-tabs button,.skin-surface .life-hub .life-categories button{background:var(--skin-surface);color:var(--skin-text);border-color:var(--skin-border)}
+.skin-surface .life-hub .life-tabs button.active,.skin-surface .life-hub .life-categories button.active{background:var(--refined-green-bg);color:var(--refined-green);border-color:var(--refined-green)}
+.skin-surface .life-hub .life-font{background:var(--skin-surface)!important;color:var(--skin-text)!important;border-color:var(--skin-border)!important}

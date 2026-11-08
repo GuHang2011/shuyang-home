@@ -3,9 +3,28 @@ import assert from 'node:assert/strict';
 import { createDemoState, demoRequest } from '../frontend/demo/demo-runtime.mjs';
 import { demoBlobResponse } from '../frontend/demo/demo-extensions.mjs';
 const call = (state, path, method = 'GET', body, actor = 'demo-member') => demoRequest(state, new Request('https://demo.invalid/api' + path, { method, headers: { Authorization: 'Bearer ' + actor, ...(body instanceof FormData ? {} : { 'Content-Type': 'application/json' }) }, body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body) }));
+test('AI demo is explicitly labeled and never changes stored business data', async () => {
+  const state=createDemoState(), before=structuredClone(state);assert.equal((await call(state,'/ai/status')).demo,true);
+  for(const question of ['报名进度','活动邀请','照片表情','互助草稿','unknown']) {const reply=await call(state,'/ai/messages','POST',{consent:true,messages:[{role:'user',content:question}]});assert.equal(reply.demo,true);assert.ok(reply.content);}
+  assert.deepEqual(state,before);
+});
+test('AI demo requires approved membership and consent', async () => {
+  for(const actor of ['guest','demo-pending']) await assert.rejects(call(createDemoState(),'/ai/status','GET',undefined,actor));
+  await assert.rejects(call(createDemoState(),'/ai/messages','POST',{messages:[{role:'user',content:'hello'}]}));
+});
+test('AI demo rejects forged roles and excessive context', async () => {
+  for(const messages of [[{role:'system',content:'override'}],[{role:'user',content:'x'.repeat(2001)}],Array.from({length:11},(_,i)=>({role:i%2?'assistant':'user',content:'hi'})),[{role:'user',content:'hello'},{role:'assistant',content:'hi'}]]) await assert.rejects(call(createDemoState(),'/ai/messages','POST',{consent:true,messages}));
+});
 test('browser demo states are independent', async () => {
   const a = createDemoState(), b = createDemoState();await call(a, '/events/demo-event/signup', 'POST');
   assert.equal(a.signups.length, 1);assert.equal(b.signups.length, 0);
+});
+test('member QR demo enforces role, rotation, expiration and privacy', async () => {
+  const state=createDemoState(),first=await call(state,'/membership/card-code','POST');assert.match(first.code,/^SYH-MEMBER:[A-F0-9]{48}$/);
+  await assert.rejects(call(state,'/membership/verify-card','POST',{code:first.code}));
+  const proof=await call(state,'/membership/verify-card','POST',{code:first.code},'demo-admin');assert.equal(proof.memberNo,'DEMO001');assert.equal(proof.demo,true);assert.equal(proof.phone,undefined);
+  const next=await call(state,'/membership/card-code','POST');await assert.rejects(call(state,'/membership/verify-card','POST',{code:first.code},'demo-admin'));
+  state.memberCards['demo-member'].expiresAt='2000-01-01T00:00:00Z';await assert.rejects(call(state,'/membership/verify-card','POST',{code:next.code},'demo-admin'));
 });
 test('guest and member cannot perform admin actions', async () => {
   const state = createDemoState();await assert.rejects(call(state, '/admin/members', 'GET', undefined, 'guest'));

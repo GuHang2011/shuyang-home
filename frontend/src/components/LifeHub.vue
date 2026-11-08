@@ -30,7 +30,7 @@ function contact(id:string,name:string){emit('contact',{id,name});}
 </script>
 <template>
   <section class="life-hub" :class="{'life-large':large}">
-    <header class="life-hero"><div><div class="life-eyebrow">沭阳之家 · 生活服务</div><h2 class="life-h2">生活服务</h2><p>办事有清单，求助有回应，进度看得见。</p></div><button class="life-font" :aria-pressed="large" @click="large=!large">{{large?'标准字号':'大字模式'}}</button></header>
+    <header class="life-hero"><div><div class="life-eyebrow">沭阳之家 · 生活服务</div><h2 class="life-h2">生活服务</h2><p>办事指南、求职招聘与邻里互助。</p></div><button class="life-font" :aria-pressed="large" @click="large=!large">{{large?'标准字号':'大字模式'}}</button></header>
     <div v-if="error" class="life-alert" role="alert">{{error}}<button v-if="!selected&&!editing" :disabled="loading||busy" @click="load">重新加载</button></div><div v-if="message" class="life-success" role="status">{{message}}</div>
     <nav class="life-tabs" aria-label="服务范围"><button :disabled="busy" :class="{active:['public','mine','manage'].includes(tab)}" @click="switchTab('public')">服务广场</button><button v-if="approved" :disabled="busy" :class="{active:tab==='tasks'}" @click="switchTab('tasks')">服务事项</button><button v-if="approved" :disabled="busy" :class="{active:tab==='inbox'}" @click="switchTab('inbox')">服务通知 {{unread||''}}</button><button v-if="approved" :disabled="busy" :class="{active:tab==='pickup'}" @click="switchTab('pickup')">我的自提</button><button v-if="approved" :disabled="busy" :class="{active:tab==='feedback'}" @click="switchTab('feedback')">纠错反馈</button></nav>
     <div v-if="loading" class="life-muted" role="status">正在加载最新进展…</div>
