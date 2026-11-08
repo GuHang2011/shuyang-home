@@ -1,9 +1,9 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 export const homeSlides = [
-  { id: 'welcome', label: '一份乡情，一生牵挂', first: '把日子过好，', second: '和老乡一起。', description: '赴一场相聚，分享一份所长。', detail: '把他乡的日常，慢慢过成家的模样。', action: '去看看活动', target: 'events', note: '苏州 · 沭阳，让乡情发生在每一天', theme: 'ink', artFirst: '见字如面', artSecond: '乡音如故' },
-  { id: 'gather', label: '走出屏幕，见见老乡', first: '相聚的时光，', second: '一起去创造。', description: '一次相约，一声熟悉的问候。', detail: '从乡情聚会到公益志愿，总有一份温暖等你。', action: '发现乡情活动', target: 'events', note: '乡情聚会 · 公益志愿 · 温暖同行', theme: 'green', artFirst: '赴一场相聚', artSecond: '续一份乡情' },
-  { id: 'memories', label: '把美好，留在家里的相册', first: '每一张照片，', second: '都有家的温度。', description: '有乡音，有笑脸，也有难忘的瞬间。', detail: '翻开相聚相册，重温我们一起走过的日子。', action: '翻开相聚相册', target: 'gallery', note: '相聚有时，回忆常在', theme: 'clay', artFirst: '记录相聚', artSecond: '珍藏乡情' }
+  { id: 'welcome', label: '沭阳之家', first: '沭阳老乡，', second: '在苏州相聚', description: '看看近期活动，认识身边的老乡。', detail: '也可以到互助广场发布需求。', action: '查看活动', target: 'events', theme: 'ink' },
+  { id: 'gather', label: '一起参与', first: '周末有什么', second: '活动？', description: '活动时间、地点和报名情况，一起查看。', detail: '选好活动后，可在线报名和签到。', action: '查看活动', target: 'events', theme: 'green' },
+  { id: 'memories', label: '活动记录', first: '翻翻大家的', second: '活动照片', description: '按相册查看照片，或打开往期活动原相册。', detail: '自己的照片也可以发到论坛。', action: '查看相册', target: 'gallery', theme: 'clay' }
 ] as const;
 
 /** One timer for Web, H5 and mini-program; background views never advance. */
@@ -24,7 +24,7 @@ export function useHomeCarousel(api: (path: string) => Promise<any>, enabled: ()
     if (typeof document !== 'undefined') { visibility();document.addEventListener('visibilitychange', visibility); }
     if (typeof window !== 'undefined' && window.matchMedia) { motion = window.matchMedia('(prefers-reduced-motion: reduce)');preference();motion.addEventListener?.('change', preference); }
     schedule();
-    api('/albums').then(data => { if (!disposed) cover.value = (data.albums || []).find((album: any) => album.status === 'published' && album.cover)?.cover || ''; }).catch(() => { /* Brand artwork remains available when an optional cover cannot load. */ });
+    api('/albums').then(data => { if (!disposed) cover.value = (data.albums || []).find((album: any) => album.status === 'published' && album.cover)?.cover || ''; }).catch(() => { /* The credited city photograph remains available. */ });
   });
   onUnmounted(() => { disposed = true;clearTimeout(timer);if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', visibility);motion?.removeEventListener?.('change', preference); });
   return { slides: homeSlides, index, current, paused, hovered, focused, touching, hidden, reducedMotion, playing, cover, select, next, previous };

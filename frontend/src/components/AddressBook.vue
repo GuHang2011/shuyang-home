@@ -9,7 +9,7 @@ async function copy(text:string){try{await navigator.clipboard.writeText(text);m
 </script>
 <template>
  <section class="people-hub">
-  <header class="feature-heading"><div><p class="feature-kicker">身边的老乡 · 我的联系簿</p><h2>有事，找得到人。</h2><p>公开名录与双方同意的联系方式，一处整理。</p></div><button class="outline" :disabled="loading||busy" @click="load">刷新通讯录</button></header>
+  <header class="feature-heading"><div><p class="feature-kicker">我的通讯录</p><h2>把常联系的人放在一起。</h2><p>公开资料、私人备注和已交换的联系方式，一处查看。</p></div><button class="outline" :disabled="loading||busy" @click="load">刷新通讯录</button></header>
   <div v-if="error" class="feature-error" role="alert">{{error}}</div><p v-if="message" class="feature-success" role="status">{{message}}</p>
   <div v-if="!allowed" class="feature-empty">通讯录仅向审核通过的会员开放。<button class="primary" @click="emit('join')">{{user?'查看入会状态':'登录账号'}}</button></div>
   <template v-else>

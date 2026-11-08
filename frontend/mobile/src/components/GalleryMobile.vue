@@ -34,7 +34,7 @@ function external() {
 async function preview(row: Row) { try { const path = await downloadMedia(row.mediaId);uni.previewImage({ urls: [path], current: path }); } catch(e) { error.value = (e as Error).message; } }
 </script>
 <template><view class="gallery-mobile">
-  <view class="title">相聚的日子</view><view class="intro">把乡音、笑脸与每一次相助，留在家里的相册。</view>
+  <view class="title">活动相册</view><view class="intro">活动照片集中查看，也可以去论坛分享自己的照片。</view>
   <view v-if="error" class="error">{{ error }}</view>
   <view v-if="staff && !editing && !selected" class="button-row gallery-actions"><button class="outline" @click="manage = !manage">{{ manage ? '公开相册' : '管理相册' }}</button><button class="primary" @click="edit()">新建相册</button></view>
   <view v-if="editing" class="form-page">
@@ -56,7 +56,7 @@ async function preview(row: Row) { try { const path = await downloadMedia(row.me
   </template>
   <template v-else>
     <view v-if="forumEnabled && !staff" class="photo-invite"><view class="card-title">你的镜头，也有家乡的故事</view><view class="meta">活动相册由管理团队整理，你也可以到论坛分享自己的照片。</view><button class="outline" @click="emit('share')">去论坛分享照片 →</button></view>
-    <view class="source-album" @click="external"><text class="source-mark">忆</text><view><text>我们的活动原相册</text><view>{{ source.title }}</view><text>重温相聚的时刻 ↗</text></view></view>
+    <view class="source-album" @click="external"><text class="source-mark">忆</text><view><text>我们的活动原相册</text><view>{{ source.title }}</view><text>查看照片 ↗</text></view></view>
     <view v-if="!albums.length" class="empty">活动影像正在整理中<br/>可先查看上方原相册</view>
     <view v-for="album in albums" :key="album.id" class="mobile-album" @click="detail(album)"><image v-if="album.cover && album.status === 'published'" :src="baseUrl() + '/media/' + album.cover" mode="aspectFill" lazy-load/><view v-else class="album-placeholder">乡情 · 留影</view><view><view class="meta">{{ album.date }} · {{ album.count }} 张照片<span v-if="manage"> · {{ album.status === 'published' ? '已公开' : '草稿' }}</span></view><view class="card-title">{{ album.title }}</view><view class="meta">{{ album.location }}</view></view></view>
   </template>

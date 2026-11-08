@@ -32,7 +32,7 @@ async function submit() {
 <template>
   <div class="account-form element-surface" :class="{ 'login-form': mode === 'login' }">
     <div v-if="mode === 'login'" class="login-brand">
-      <img src="/brand/logo.png" alt="沭阳之家标志"><div><strong>一声乡音，就是回家的路。</strong><p>乡情相聚 · 守望相助</p></div>
+      <img src="/brand/logo.png" alt="沭阳之家标志"><div><strong>登录后查看会员与活动</strong><p>活动 · 互助 · 通知</p></div>
     </div>
     <ElAlert v-else title="资料由你决定是否公开，可随时修改名录与手机号的展示设置。" type="info" :closable="false" show-icon />
     <ElForm ref="formRef" :model="modelValue" :rules="rules" label-position="top" scroll-to-error :disabled="busy" size="large" @submit.prevent="submit" hide-required-asterisk>
