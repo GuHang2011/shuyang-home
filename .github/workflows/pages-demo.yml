@@ -27,7 +27,7 @@ jobs:
       - run: npm ci
         working-directory: frontend
       - run: node scripts/test-demo-runtime.mjs
-      - run: npm run typecheck && npm run test:ai && npm run test:member-card
+      - run: npm run typecheck && npm run test:ai && npm run test:member-card && npm run test:railway
         working-directory: frontend
       - run: npm run build:demo
         working-directory: frontend

@@ -14,9 +14,26 @@ export const railwayQuestions = [
   { question: '去哪里查现在能坐的车？', answer: '在铁路 12306 查询实际出发地、目的地和日期。涉及换乘时，请留足接驳和进站时间，核对车票上的车站全名。' }
 ];
 export const railwaySources = [
+  { title: '沭阳县人民政府', description: '家乡政务公开、规划公示与回应', url: 'http://www.shuyang.gov.cn/' },
   { title: '江苏省交通运输厅', description: '交通规划、公示与政务信息', url: 'https://jtyst.jiangsu.gov.cn/' },
   { title: '国家发展改革委', description: '规划与项目批复信息', url: 'https://www.ndrc.gov.cn/' },
   { title: '铁路 12306', description: '查询已开行车次与出行服务', url: 'https://www.12306.cn/' }
+];
+export const railwaySections = [
+  { id: 'discussion', label: '高铁讨论' },
+  { id: 'news', label: '资讯与解读' },
+  { id: 'reference', label: '资料与常识' }
+] as const;
+export const railwayReadingSteps = [
+  { title: '看原始出处', text: '附上发布单位、原文链接和发布日期；转来的截图尽量找到完整原文。' },
+  { title: '分清项目阶段', text: '规划研究、项目批复、施工建设与运营开通不是同一件事，讨论时说明原文所处阶段。' },
+  { title: '说清个人判断', text: '站点猜测、接驳设想和个人解读请写明是观点。尚未确认的信息，可以发起“提问求证”。' }
+];
+export const railwayStages = [
+  { title: '规划研究', text: '关注规划文件中的项目名称、范围和表述。列入规划不等于已经开工。' },
+  { title: '批复与公示', text: '查阅可研、环评等原文，并区分征求意见稿与正式文件。具体以对应文件为准。' },
+  { title: '建设进展', text: '核对招标或施工信息涉及的具体标段与工程，不据单张照片推断全线进度。' },
+  { title: '运营开通', text: '以铁路部门运营公告和12306实际车次为准，规划中的车站不等于可购票车站。' }
 ];
 export function safeRailwayUrl(value: unknown) {
   const url = String(value || '').trim();

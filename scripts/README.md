@@ -126,6 +126,16 @@ python scripts/summarize-business-files.py --run-prefix retest-20261102
 
 手机／微信真实摄像头仍需设备验收，详情见[本轮功能与验证记录](../docs/换肤拍照与在线演示-v1.8.0.md)。
 
+## v1.11.0 淮新高铁论坛
+
+`npm --prefix frontend run test:railway`运行26项逻辑检查，覆盖专属板块、身份切换与迟到响应、筛选、来源、审核范围，以及Web／H5／小程序音频在隐藏时暂停、迟到加载作废与返回不自动播放；已接入`test:regression`和Pages发布检查。
+
+先执行`npm --prefix frontend run build:demo`和`npm --prefix frontend/mobile run build:h5`，再运行`node scripts/test-railway-browser.cjs`。脚本启动隔离服务，Web使用实际演示Service Worker，H5使用演示数据API夹具；检查三主题、1440／390／320px、固定板块、分类／热帖／待回复、来源、草稿保留及Web发帖和回复审核全流程。不会向真实业务后端写入内容。
+
+浏览器使用前端Playwright及其Chromium安装；可通过`SHUYANG_PLAYWRIGHT_MODULE`、`SHUYANG_CHROMIUM_PATH`指定其他安装位置。截图和结果写入被Git忽略的`output/railway-browser`。正式后端铁路权限与校验由`RailwayForumTests`验证，演示升级与权限由`node scripts/test-demo-runtime.mjs`验证。
+
+当前页面脚本29项，额外包含深色筛选按钮及摘要的4.5:1文字对比检查、Web上传并审核合成WAV、Web／H5实际音频在栏目切换时暂停和返回不自动播放。音频为本地生成的提示音，不含真人录音。
+
 ## v1.10.2 首页素材与布局
 
 先构建Web演示和H5，再运行 `node scripts/test-home-materials.cjs`。脚本使用隔离静态服务器与演示数据，检查三套主题、1440／390／320px、素材载入与署名、公告过滤、轮播控制条和移动swiper高度，不需要业务后端。结果与截图保存在Git忽略的 `output/home-materials`。

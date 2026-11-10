@@ -1,5 +1,11 @@
 # 界面截图
 
+## v1.11.0 淮新高铁论坛
+
+[电脑讨论区](railway-forum-desktop-1110.png) · [手机H5讨论区](railway-forum-phone-1110.png) · [深色手机讨论区](railway-forum-night-1110.png) · [资料与常识](railway-reference-1110.png)。
+
+本组为Chromium模拟的1440px电脑及390px手机页面，来自隔离演示；帖子、回复与身份均为样例。手机截图不等于微信真机验收。版规和出行话题不代表正式项目消息。功能与实际检查记录见[高铁论坛验收](../淮新高铁论坛-v1.11.0.md)。
+
 ## v1.10.2 真实素材首页
 
 [电脑首页](home-materials-desktop-1102.png) · [手机H5首页](home-materials-phone-1102.png) · [深色首页](home-materials-night-1102.png)。

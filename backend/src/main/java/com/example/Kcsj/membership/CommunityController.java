@@ -48,7 +48,7 @@ public class CommunityController {
     }
     private Map<String,Object> topicView(Map<String,Object> topic,Map<String,Object> actor) {
         Map<String,Object> result=publicRow(topic,actor);result.put("canModerate",policy.moderates(actor,s(topic,"category")));
-        if(!s(topic,"forwardedTopicId").isEmpty()){Optional<Map<String,Object>> source=store.all("forum_topic").stream().filter(r->s(r,"id").equals(s(topic,"forwardedTopicId"))&&s(r,"status").equals("approved")&&policy.canRead(actor,s(r,"category"))&&!policy.hiddenAuthor(actor,s(r,"authorId"))).findFirst();result.put("forwarded",source.isPresent()?pick(source.get(),"id","title","content","authorName","audio","photos"):map("unavailable",true));}
+        if(!s(topic,"forwardedTopicId").isEmpty()){Optional<Map<String,Object>> source=store.all("forum_topic").stream().filter(r->s(r,"id").equals(s(topic,"forwardedTopicId"))&&s(r,"status").equals("approved")&&policy.canRead(actor,s(r,"category"))&&!policy.hiddenAuthor(actor,s(r,"authorId"))).findFirst();result.put("forwarded",source.isPresent()?pick(source.get(),"id","title","content","authorName","audio","photos","category","discussionType","sourceName","sourceUrl"):map("unavailable",true));}
         result.putAll(map("pinned",s(topic,"status").equals("approved")&&b(topic,"pinned"),"hot",s(topic,"status").equals("approved")&&b(topic,"hot"),"promotionRevision",ForumPromotion.revision(topic)));
         result.put("replyCount",store.all("forum_reply").stream().filter(r->s(r,"topicId").equals(s(topic,"id"))&&s(r,"status").equals("approved")).count());return result;
     }
@@ -71,7 +71,8 @@ public class CommunityController {
     @PostMapping("/forum/topics") public Map<String,Object> createTopic(@RequestBody Map<String,Object> input,HttpServletRequest req) {
         store.lockWrites();Map<String,Object> actor=approvedMember(req);auth.limit("forum:"+s(actor,"id"),20);Map<String,Object> topic=author(actor);
         String audioId=text(input,"audioId",0,80);List<String> photos=photoIds(input);
-        topic.putAll(map("title",text(input,"title",2,80),"content",text(input,"content",audioId.isEmpty()&&photos.isEmpty()?10:0,5000),"category",choice(input,"category","乡情闲聊","苏州生活","创业交流","家乡故事"),"locked",false));
+        topic.putAll(map("title",text(input,"title",2,80),"content",text(input,"content",audioId.isEmpty()&&photos.isEmpty()?10:0,5000),"category",choice(input,"category",ForumPolicy.BOARDS.toArray(new String[0])),"locked",false));
+        topic.putAll(ForumPolicy.railwayMetadata(input,s(topic,"category")));
         policy.participating(actor,s(topic,"category"),true);
         String forward=text(input,"forwardedTopicId",0,80);if(!forward.isEmpty()){Map<String,Object> source=store.get("forum_topic",forward);policy.participating(actor,s(source,"category"),false);if(!policy.canRead(actor,s(source,"category"))||!s(source,"status").equals("approved")||policy.hiddenAuthor(actor,s(source,"authorId")))throw new ApiException(404,"原帖不可转发");topic.put("forwardedTopicId",forward);}
         if(!audioId.isEmpty())topic.put("audio",media.bindForum(audioId,"forum_topic",s(topic,"id"),actor));

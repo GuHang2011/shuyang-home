@@ -1,4 +1,4 @@
-import { createDemoState, demoRequest, demoSchema, stickerPacks } from './demo-runtime.mjs';
+import { createDemoState, upgradeDemoState, demoRequest, demoSchema, stickerPacks } from './demo-runtime.mjs';
 import { demoBlobResponse } from './demo-extensions.mjs';
 const release = '__DEMO_VERSION__';
 const scope = new URL(self.registration.scope);
@@ -21,7 +21,7 @@ let queue = Promise.resolve();
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Demo-Version': release } });
 async function handle(request) {
   try {
-    if (!state) { const saved = await store();state = saved?.schema === demoSchema ? saved : createDemoState(); }
+    if (!state) { const saved = await store();state = saved?.schema === demoSchema ? upgradeDemoState(saved) : createDemoState();await store(state); }
     const reset = new URL(request.url).pathname === '/api/demo/reset';
     const write = request.method !== 'GET';
     const next = write ? (reset ? createDemoState() : structuredClone(state)) : state;

@@ -5,9 +5,44 @@ const now = () => new Date().toISOString();
 const date = days => new Date(Date.now() + days * 86400000).toISOString();
 const id = prefix => prefix + '-' + crypto.randomUUID();
 const fail = message => { throw new Error(message); };
+export const demoForumBoards = ['乡情闲聊', '苏州生活', '创业交流', '家乡故事', '淮新高铁'];
+const railwayTypes = ['进展讨论', '站点与接驳', '返乡出行', '资料分享', '提问求证'];
+const forumText = (body, key, min, max) => {
+  if (body[key] != null && typeof body[key] !== 'string') fail('字段格式错误：' + key);
+  const value = (body[key] || '').trim();if (value.length < min || value.length > max) fail('请检查字段长度：' + key);return value;
+};
+function railwayMetadata(body) {
+  if (body.category !== '淮新高铁') return {};
+  const discussionType = forumText(body, 'discussionType', 0, 40) || '进展讨论';
+  if (!railwayTypes.includes(discussionType)) fail('请选择有效的高铁话题类型');
+  const sourceName = forumText(body, 'sourceName', 0, 100), sourceUrl = forumText(body, 'sourceUrl', 0, 1000);
+  if (!!sourceName !== !!sourceUrl) fail('来源名称与原文链接请一起填写');
+  if (sourceUrl) {
+    try { const url = new URL(sourceUrl);if (!/^https?:\/\//.test(sourceUrl) || !['http:', 'https:'].includes(url.protocol) || !url.hostname || url.username || url.password || /[\\\s<>\u0000-\u001f]/.test(sourceUrl)) throw Error(); }
+    catch { fail('原文链接须为有效的http或https地址，不可包含账号信息'); }
+  }
+  return { discussionType, sourceName, sourceUrl };
+}
+/** Add this release's samples once without replacing existing records or photos. */
+export function upgradeDemoState(state) {
+  const floors = new Map();
+  for (const reply of state.replies || []) {
+    const floor = (floors.get(reply.topicId) || 0) + 1;floors.set(reply.topicId, floor);
+    if (reply.floor == null) reply.floor = floor;
+  }
+  if (state.railwayForumVersion === 1) return state;
+  const common = { category:'淮新高铁', authorId:'demo-admin', authorName:'演示管理员', status:'approved', photos:[], audio:null, pinned:false, hot:false, promotionRevision:0, replyCount:0, locked:false, createdAt:now() };
+  const samples = [
+    { id:'demo-rail-rules', title:'先核对来源，再参与讨论（演示版规）', discussionType:'资料分享', content:'本帖为演示版规。分享进展时请附来源名称和原文链接；区分规划、批复、开工与通车，不把个人猜测写成确定消息。以下链接是官方信息入口，不是项目批复文件。', sourceName:'江苏省交通运输厅（官方信息入口）', sourceUrl:'https://jtyst.jiangsu.gov.cn/', pinned:true, hot:true, promotionRevision:1 },
+    { id:'demo-rail-transfer', title:'你更关心哪些站点接驳问题？（演示）', discussionType:'站点与接驳', content:'这是一条演示讨论：接驳公交、候车环境、家到车站的交通，你最关心哪一项？请分享需求与想法。这里不代表已公布的车站选址或接驳方案。', sourceName:'', sourceUrl:'', hot:true, promotionRevision:1 },
+    { id:'demo-rail-travel', title:'返乡前，怎样核对车站和换乘时间？（演示）', discussionType:'返乡出行', content:'这是一条演示经验帖。实际出行请在12306核对日期、车站全名和可售车次，给接驳和进站预留时间。此帖不提供淮新高铁开通日期或虚构车次。', sourceName:'铁路12306（出行查询入口）', sourceUrl:'https://www.12306.cn/' }
+  ];
+  state.topics ||= [];for (const sample of samples) if (!state.topics.some(row => row.id === sample.id)) state.topics.push({ ...common, ...sample });
+  state.forumRestrictions ||= [];state.memberBlocks ||= [];state.railwayForumVersion = 1;return state;
+}
 export function createDemoState() {
   const profile = { status: 'approved', enabled: true, hometown: '江苏沭阳', district: '苏州吴中', industry: '社区服务', bio: '这是虚构的演示资料。', volunteer: true, directoryVisible: true, phoneVisible: false, mustChangePassword: false, forumBoards: [], createdAt: now() };
-  return {
+  return upgradeDemoState({
     schema: demoSchema,
     users: [{ ...profile, id: 'demo-member', username: 'demo', name: '演示会员', phone: '13800000001', memberNo: 'DEMO001', role: 'member' }, { ...profile, id: 'demo-admin', username: 'admin', name: '演示管理员', phone: '13800000002', memberNo: 'DEMO002', role: 'superadmin' }, { ...profile, id: 'demo-pending', username: 'new', name: '待审核演示会员', phone: '13800000003', memberNo: '', role: 'member', status: 'pending' }],
     events: [{ id: 'demo-event', title: '周末老乡交流会（演示）', category: '乡情聚会', location: '演示社区活动室', content: '这是一场虚构活动，用于体验报名、取消报名和管理名单。请勿据此实际前往。', description: '认识身边的老乡，分享生活经验。此活动仅用于演示。', startsAt: date(7), endsAt: date(7.1), capacity: 30, hours: 2, registered: 0, status: 'published', createdAt: now() }, { id: 'demo-volunteer', title: '社区清洁志愿活动（演示）', category: '公益志愿', location: '演示社区广场', content: '用于体验公益活动报名与志愿时长记录。此活动不实际举办。', description: '一起体验志愿活动报名。', startsAt: date(10), endsAt: date(10.1), capacity: 20, hours: 2, registered: 0, status: 'published', createdAt: now() }],
@@ -22,7 +57,7 @@ export function createDemoState() {
     messages: [{ id: 'demo-message', roomId: 'demo-room', senderId: 'demo-admin', senderName: '演示管理员', content: '欢迎！试试发送文字、表情或拍照。这些内容只留在你的浏览器中。', sequence: 1, createdAt: now(), recalled: false }],
     broadcasts: [{ id: 'demo-broadcast', title: '在线体验版', content: '这是独立演示环境。样例资料与操作仅保存在当前浏览器，可随时重置。', status: 'published', startsAt: date(-1), endsAt: date(365), revision: 1, audio: null, createdAt: now() }],
     media: {}, polls: [], resources: [], audit: []
-  };
+  });
 }
 const pick = (rows, key) => rows.find(row => row.id === key) || fail('演示记录不存在，请刷新或重置演示数据');
 export const stickerPacks = [{ id: 'demo', name: '乡情问候', stickers: [{ id: 'demo-hello', label: '老乡好' }, { id: 'demo-great', label: '赞一个' }, { id: 'demo-cheer', label: '加油' }] }];
@@ -33,12 +68,35 @@ const broadcastView = row => ({ ...row, state: row.status !== 'published' ? row.
 export async function demoRequest(state, request) {
   const url = new URL(request.url), path = url.pathname.replace(/^\/api/, ''), method = request.method, read = method === 'GET';
   const token = (request.headers.get('Authorization') || '').replace(/^Bearer /, ''), actor = state.users.find(row => row.id === token);
-  const member = () => actor?.status === 'approved' ? actor : fail('请在顶部选择演示会员或管理员');
+  const member = () => actor?.enabled && actor.status === 'approved' ? actor : fail('请在顶部选择演示会员或管理员');
   const admin = () => actor?.role === 'superadmin' ? actor : fail('请切换到演示管理员体验此操作');
   const mine = rows => rows.filter(row => row.userId === actor?.id || row.authorId === actor?.id || row.buyerId === actor?.id);
   const eventView = row => ({ ...row, registered: state.signups.filter(s => s.eventId === row.id && s.status !== 'cancelled').length, mySignup: state.signups.find(s => s.eventId === row.id && s.userId === actor?.id && s.status !== 'cancelled') || null });
   const photoRefs = ids => (ids || []).map(key => mediaView(state.media[key])).filter(Boolean);
   const author = () => ({ authorId: member().id, authorName: actor.name, createdAt: now() });
+  const moderates = board => !!actor?.enabled && actor.status === 'approved' && (['superadmin','admin','organizer'].includes(actor.role) || actor.role === 'moderator' && actor.forumBoards?.includes(board));
+  const requireModerator = board => { if (!moderates(board)) fail('你没有该板块的管理权限'); };
+  const restrictions = () => state.forumRestrictions || [];
+  const blocks = () => state.memberBlocks || [];
+  const canRead = board => !restrictions().some(r => r.active && r.userId === actor?.id && r.board === board && r.action === 'kick');
+  const participate = (board, write) => { if (restrictions().some(r => r.active && r.userId === actor?.id && r.board === board && (write || r.action === 'kick'))) fail(write ? '你在该板块暂时不能发言，请联系管理员' : '你已被移出该板块，请联系管理员'); };
+  const hiddenAuthor = authorId => blocks().some(r => r.active && r.ownerId === actor?.id && r.targetId === authorId);
+  const blocked = authorId => blocks().some(r => r.active && (r.ownerId === actor?.id && r.targetId === authorId || r.targetId === actor?.id && r.ownerId === authorId));
+  const forumVisible = (row, board = row.category) => row.status === 'approved' || row.authorId === actor?.id || moderates(board);
+  const topicView = row => {
+    const result = { ...row, canModerate:moderates(row.category), replyCount:state.replies.filter(r => r.topicId === row.id && r.status === 'approved').length, pinned:row.status === 'approved' && !!row.pinned, hot:row.status === 'approved' && !!row.hot };
+    if (row.status === 'deleted') { for (const key of ['discussionType','sourceName','sourceUrl','forwardedTopicId','audio','photos']) delete result[key];return result; }
+    if (row.forwardedTopicId) {
+      const source = state.topics.find(r => r.id === row.forwardedTopicId && r.status === 'approved' && canRead(r.category) && !hiddenAuthor(r.authorId));
+      result.forwarded = source ? Object.fromEntries(['id','title','content','authorName','audio','photos','category','discussionType','sourceName','sourceUrl'].filter(key => key in source).map(key => [key,source[key]])) : { unavailable:true };
+    }
+    return result;
+  };
+  const replyView = (row, topic) => {
+    const result = { ...row, category:topic.category, canModerate:moderates(topic.category) };
+    if (row.parentId) { const parent = state.replies.find(r => r.id === row.parentId && r.topicId === topic.id && r.status === 'approved' && !hiddenAuthor(r.authorId));result.quoted = parent ? Object.fromEntries(['floor','content','authorName','audio','photos'].filter(key => key in parent).map(key => [key,parent[key]])) : { unavailable:true }; }
+    return result;
+  };
   const workItems = manage => {
     const rows = [], add = (row, kind, kindLabel, title, stateLabel, section) => rows.push({ id: row.id, kind, kindLabel, title, state: stateLabel, section, createdAt: row.createdAt, updatedAt: row.createdAt, waitingSince: row.createdAt });
     if (manage) { admin();state.users.filter(u => u.status === 'pending').forEach(u => add(u, 'user', '入会申请', u.name + '的入会申请', '待审核', 'action')); }
@@ -116,20 +174,56 @@ export async function demoRequest(state, request) {
   if ((match = path.match(/^\/posts\/([^/]+)\/(review|close)$/)) && !read) { const row = pick(state.posts, match[1]);if (match[2] === 'review') admin();else if (row.authorId !== member().id) admin();row.status = match[2] === 'close' ? 'closed' : body.status;return row; }
   if (path === '/notices' && read) return state.notices;
   if ((path === '/notices' || /^\/notices\/[^/]+$/.test(path)) && !read) { admin();const row = { ...body, id: path.split('/')[2] || id('notice'), createdAt: now() };state.notices = [row, ...state.notices.filter(n => n.id !== row.id)];return row; }
-  if (path === '/forum/topics' && read) return state.topics.filter(t => t.status === 'approved');
-  if (path === '/my/forum') return mine(state.topics);
-  if (path === '/admin/forum') { admin();return { topics: state.topics, replies: state.replies }; }
-  if (path === '/forum/topics' && !read) { const row = { ...body, ...author(), id: id('topic'), status: 'pending', photos: photoRefs(body.photoIds), audio: mediaView(state.media[body.audioId]), replyCount: 0, pinned: false, hot: false, promotionRevision: 0 };state.topics.unshift(row);return row; }
-  if ((match = path.match(/^\/forum\/topics\/([^/]+)$/)) && read) return { topic: pick(state.topics, match[1]), replies: state.replies.filter(r => r.topicId === match[1] && (r.status === 'approved' || r.authorId === actor?.id || actor?.role === 'superadmin')) };
-  if ((match = path.match(/^\/forum\/topics\/([^/]+)\/replies$/)) && !read) { const topic = pick(state.topics, match[1]);if (topic.locked) fail('话题已关闭回复');const row = { ...body, ...author(), id: id('reply'), topicId: topic.id, status: 'pending', photos: photoRefs(body.photoIds), audio: mediaView(state.media[body.audioId]) };state.replies.push(row);return row; }
-  if ((match = path.match(/^\/forum\/(topics|replies)\/([^/]+)\/(review|delete|lock|promotion)$/)) && !read) {
-    admin();const row = pick(match[1] === 'topics' ? state.topics : state.replies, match[2]);
-    if (match[3] === 'promotion') { if (row.status !== 'approved') fail('请先审核通过话题');if (body.pinned !== undefined) row.pinned = !!body.pinned;if (body.hot !== undefined) row.hot = !!body.hot;row.promotionRevision++; }
-    else if (match[3] === 'lock') row.locked = !row.locked;
-    else row.status = match[3] === 'delete' ? 'deleted' : body.status;
-    if (row.status !== 'approved') { row.pinned = false;row.hot = false; }
-    state.topics.forEach(t => t.replyCount = state.replies.filter(r => r.topicId === t.id && r.status === 'approved').length);return row;
+  if (path === '/forum/topics' && read) return state.topics.filter(t => t.status === 'approved' && canRead(t.category) && !hiddenAuthor(t.authorId)).map(topicView);
+  if (path === '/my/forum' && read) { member();return mine(state.topics).map(topicView); }
+  if (path === '/admin/forum' && read) { if (!demoForumBoards.some(moderates)) fail('仅版主可以查看管理队列');return { topics:state.topics.filter(t => moderates(t.category)).map(topicView), replies:state.replies.filter(r => moderates(pick(state.topics,r.topicId).category)).map(r => replyView(r,pick(state.topics,r.topicId))) }; }
+  if (path === '/forum/topics' && method === 'POST') {
+    const by = author(), category = forumText(body,'category',1,40);if (!demoForumBoards.includes(category)) fail('选项无效：category');participate(category,true);
+    const photos = photoRefs(body.photoIds), audio = mediaView(state.media[body.audioId]);
+    const row = { ...by, id:id('topic'), title:forumText(body,'title',2,80), content:forumText(body,'content',photos.length || audio ? 0 : 10,5000), category, ...railwayMetadata({...body,category}), status:'pending', photos, audio, replyCount:0, pinned:false, hot:false, promotionRevision:0, locked:false };
+    const forward=forumText(body,'forwardedTopicId',0,80);if (forward) { const source=pick(state.topics,forward);participate(source.category,false);if (source.status !== 'approved' || hiddenAuthor(source.authorId)) fail('原帖不可转发');row.forwardedTopicId=forward; }
+    state.topics.unshift(row);return topicView(row);
   }
+  if ((match = path.match(/^\/forum\/topics\/([^/]+)$/)) && read) {
+    const topic=pick(state.topics,match[1]);participate(topic.category,false);if (topic.status === 'deleted' || !forumVisible(topic) || hiddenAuthor(topic.authorId)) fail('话题不存在或尚未公开');
+    return { topic:topicView(topic), replies:state.replies.filter(r => r.topicId === topic.id && forumVisible(r,topic.category) && !hiddenAuthor(r.authorId)).map(r => replyView(r,topic)) };
+  }
+  if ((match = path.match(/^\/forum\/topics\/([^/]+)\/replies$/)) && method === 'POST') {
+    const by=author(),topic=pick(state.topics,match[1]);if (topic.status !== 'approved' || topic.locked) fail('话题尚未公开或已关闭回复');participate(topic.category,true);if (blocked(topic.authorId)) fail('拉黑后不能向对方的话题回复');
+    const photos=photoRefs(body.photoIds),audio=mediaView(state.media[body.audioId]),parentId=forumText(body,'parentId',0,80);
+    if (parentId) { const parent=pick(state.replies,parentId);if (parent.topicId !== topic.id || parent.status !== 'approved' || hiddenAuthor(parent.authorId)) fail('引用的楼层已不可用'); }
+    const row={...by,id:id('reply'),topicId:topic.id,content:forumText(body,'content',photos.length || audio ? 0 : 2,2000),parentId,status:'pending',photos,audio,floor:state.replies.filter(r => r.topicId === topic.id).length+1};state.replies.push(row);return replyView(row,topic);
+  }
+  if ((match = path.match(/^\/forum\/(topics|replies)\/([^/]+)\/(review|delete|lock|promotion)$/)) && !read) {
+    member();const row=pick(match[1] === 'topics' ? state.topics : state.replies,match[2]),topic=match[1] === 'topics' ? row : pick(state.topics,row.topicId),action=match[3];
+    if (!['delete','lock'].includes(action) || row.authorId !== actor.id) requireModerator(topic.category);
+    if (action === 'promotion') {
+      if (match[1] !== 'topics' || row.status !== 'approved') fail('仅已公开的话题可以置顶或设为热帖');
+      if (typeof body.revision !== 'number' || body.revision !== (row.promotionRevision || 0)) fail('话题推荐状态已更新，请刷新后重试');
+      if (!['pinned','hot'].some(key => key in body) || ['pinned','hot'].some(key => key in body && typeof body[key] !== 'boolean')) fail('请选择有效的置顶或热帖状态');
+      if (body.pinned && !row.pinned && state.topics.filter(t => t.category === row.category && t.status === 'approved' && t.pinned).length >= 3) fail('每个板块最多置顶3条话题');
+      const pinned=body.pinned ?? !!row.pinned,hot=body.hot ?? !!row.hot;
+      if (pinned !== !!row.pinned || hot !== !!row.hot) { row.pinnedAt=pinned ? row.pinnedAt || now() : '';row.pinned=pinned;row.hot=hot;row.promotionRevision=(row.promotionRevision || 0)+1; }
+    } else if (action === 'lock') { if (match[1] !== 'topics') fail('只能关闭话题回复');row.locked=true; }
+    else if (action === 'delete') {
+      forumText(body,'note',2,300);row.status='deleted';row.content='';for (const key of ['sourceName','sourceUrl','discussionType','forwardedTopicId','audio','photos']) delete row[key];
+      if (match[1] === 'topics') { row.title='已删除的话题';row.locked=true; }
+    } else {
+      if (!(row.status === 'pending' && ['approved','rejected'].includes(body.status) || row.status === 'approved' && body.status === 'hidden' || row.status === 'hidden' && body.status === 'approved')) fail('内容已被处理，请刷新列表');
+      row.reviewNote=forumText(body,'note',body.status === 'approved' ? 0 : 2,300);row.status=body.status;
+    }
+    if (row.status !== 'approved') { if (match[1] === 'topics' && (row.pinned || row.hot)) row.promotionRevision=(row.promotionRevision || 0)+1;row.pinned=false;row.hot=false;row.pinnedAt=''; }
+    return match[1] === 'topics' ? topicView(row) : replyView(row,topic);
+  }
+  if (path === '/forum/restrictions') {
+    member();if (read) { if (!demoForumBoards.some(moderates)) fail('仅版主可查看');return restrictions().filter(r => r.active && moderates(r.board)); }
+    const board=forumText(body,'board',1,40);if (!demoForumBoards.includes(board)) fail('板块无效');requireModerator(board);const target=pick(state.users,body.userId);
+    if (target.id === actor.id || ['superadmin','admin','organizer'].includes(target.role) || target.role === 'moderator' && target.forumBoards?.includes(board)) fail('不能通过板块限制处理自己或管理人员');
+    if (!['mute','kick','restore'].includes(body.action)) fail('板块操作无效');
+    const row={id:target.id+':'+board,userId:target.id,name:target.name,board,action:body.action,active:body.action !== 'restore',reason:forumText(body,'reason',2,300)};state.forumRestrictions=[...restrictions().filter(r => r.id !== row.id),row];return row;
+  }
+  if (path === '/my/blocks' && read) { member();return blocks().filter(r => r.active && r.ownerId === actor.id).map(r => ({id:r.targetId,name:pick(state.users,r.targetId).name})); }
+  if ((match=path.match(/^\/members\/([^/]+)\/block$/)) && method === 'POST') { member();pick(state.users,match[1]);if (match[1] === actor.id || typeof body.active !== 'boolean') fail('拉黑操作无效');const row={id:actor.id+':'+match[1],ownerId:actor.id,targetId:match[1],active:body.active};state.memberBlocks=[...blocks().filter(r => r.id !== row.id),row];return true; }
   if (path === '/albums' && read) return { albums: state.albums.map(a => ({ ...a, count: state.photos.filter(p => p.albumId === a.id).length })), source: { title: '在线演示相册', url: '#gallery' } };
   if ((match = path.match(/^\/albums\/([^/]+)$/)) && read) return { album: pick(state.albums, match[1]), photos: state.photos.filter(p => p.albumId === match[1]) };
   if (path === '/albums' && !read) { admin();const row = { ...body, id: body.id || id('album'), count: 0 };state.albums = [row, ...state.albums.filter(a => a.id !== row.id)];return row; }

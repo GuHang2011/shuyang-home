@@ -1,7 +1,7 @@
 export type Row = Record<string, any>;
 export const eventCategories = ['乡情聚会', '公益志愿', '交流分享', '家乡文化'];
 export const postCategories = ['求职招聘', '资源合作', '生活互助', '家乡分享'];
-export const forumCategories = ['乡情闲聊', '苏州生活', '创业交流', '家乡故事'];
+export const forumCategories = ['乡情闲聊', '苏州生活', '创业交流', '家乡故事', '淮新高铁'];
 export const resourceCategories = ['技能服务', '闲置物品', '场地设备', '信息渠道'];
 export const placementNames: Record<string, string> = { home: '首页推荐位', events: '活动页面' };
 export const contactStates: Record<string, string> = { pending: '待同意', accepted: '已交换', rejected: '已拒绝', cancelled: '已取消', revoked: '已撤销展示' };

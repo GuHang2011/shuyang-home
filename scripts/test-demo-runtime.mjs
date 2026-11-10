@@ -1,8 +1,60 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createDemoState, demoRequest } from '../frontend/demo/demo-runtime.mjs';
+import { createDemoState, upgradeDemoState, demoRequest } from '../frontend/demo/demo-runtime.mjs';
 import { demoBlobResponse } from '../frontend/demo/demo-extensions.mjs';
 const call = (state, path, method = 'GET', body, actor = 'demo-member') => demoRequest(state, new Request('https://demo.invalid/api' + path, { method, headers: { Authorization: 'Bearer ' + actor, ...(body instanceof FormData ? {} : { 'Content-Type': 'application/json' }) }, body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body) }));
+
+const railDraft = () => ({title:'淮新高铁资料核对',content:'这是用于验证高铁论坛的演示内容，不是实际项目进展。',category:'淮新高铁',discussionType:'资料分享',sourceName:'江苏省交通运输厅',sourceUrl:'https://jtyst.jiangsu.gov.cn/'});
+test('railway upgrade preserves old records and never revives removed samples', () => {
+  const state=createDemoState();delete state.railwayForumVersion;state.topics=state.topics.filter(t=>t.category!=='淮新高铁');state.topics[0].content='原有编辑保留';state.media.custom={blob:new Blob(['photo'])};
+  upgradeDemoState(state);assert.equal(state.topics.filter(t=>t.category==='淮新高铁').length,3);assert.equal(state.topics[0].content,'原有编辑保留');assert.ok(state.media.custom.blob instanceof Blob);
+  state.topics.find(t=>t.id==='demo-rail-rules').status='hidden';state.topics=state.topics.filter(t=>t.id!=='demo-rail-travel');upgradeDemoState(state);
+  assert.equal(state.topics.find(t=>t.id==='demo-rail-rules').status,'hidden');assert.equal(state.topics.some(t=>t.id==='demo-rail-travel'),false);
+});
+test('demo upgrade restores missing reply floors per topic and preserves existing numbers', () => {
+  const state=createDemoState();state.replies=[{id:'a1',topicId:'a'},{id:'b1',topicId:'b'},{id:'a2',topicId:'a',floor:2,status:'hidden'},{id:'a3',topicId:'a'},{id:'b2',topicId:'b',floor:8}];
+  upgradeDemoState(state);assert.deepEqual(state.replies.map(r=>r.floor),[1,1,2,3,8]);
+  upgradeDemoState(state);assert.deepEqual(state.replies.map(r=>r.floor),[1,1,2,3,8]);
+});
+test('railway topics validate type and paired safe source metadata before saving', async () => {
+  const state=createDemoState(),n=state.topics.length;
+  for(const change of [{discussionType:'通车确认'},{discussionType:true},{sourceName:''},{sourceUrl:''},{sourceUrl:'javascript:alert(1)'},{sourceUrl:'//example.org'},{sourceUrl:'https://user:secret@example.org'},{sourceUrl:'https://example.org:99999'},{sourceUrl:'https://example.org/\npath'},{sourceUrl:'https://example.org/<script>'},{sourceName:'x'.repeat(101)},{sourceUrl:'x'.repeat(1001)}]) await assert.rejects(call(state,'/forum/topics','POST',{...railDraft(),...change}));
+  assert.equal(state.topics.length,n);
+  const draft=railDraft();delete draft.discussionType;delete draft.sourceName;delete draft.sourceUrl;const row=await call(state,'/forum/topics','POST',draft);assert.equal(row.discussionType,'进展讨论');assert.equal(row.status,'pending');
+  const normal=await call(state,'/forum/topics','POST',{...railDraft(),category:'乡情闲聊'});assert.equal(normal.sourceUrl,undefined);
+});
+test('railway moderators only review assigned boards and pending posts are private', async () => {
+  const state=createDemoState();state.users.push({...state.users[0],id:'rail-mod',role:'moderator',forumBoards:['淮新高铁']});
+  const row=await call(state,'/forum/topics','POST',railDraft());await assert.rejects(call(state,'/forum/topics/'+row.id,'GET',undefined,'guest'));
+  await assert.rejects(call(state,'/forum/topics/demo-topic/review','POST',{status:'hidden',note:'越界操作'},'rail-mod'));
+  await call(state,'/forum/topics/'+row.id+'/review','POST',{status:'approved'},'rail-mod');const view=await call(state,'/forum/topics/'+row.id,'GET',undefined,'guest');assert.equal(view.topic.sourceUrl,railDraft().sourceUrl);
+  const queue=await call(state,'/admin/forum','GET',undefined,'rail-mod');assert.ok(queue.topics.every(t=>t.category==='淮新高铁'));
+  const reply=await call(state,'/forum/topics/'+row.id+'/replies','POST',{content:'演示回复'});assert.equal(reply.floor,1);assert.equal((await call(state,'/forum/topics/'+row.id,'GET',undefined,'guest')).replies.length,0);
+  await call(state,'/forum/replies/'+reply.id+'/review','POST',{status:'approved'},'rail-mod');assert.equal((await call(state,'/forum/topics/'+row.id,'GET',undefined,'guest')).replies.length,1);
+});
+test('railway forwarding redacts hidden source and deletion clears metadata', async () => {
+  const state=createDemoState(),row=await call(state,'/forum/topics','POST',{...railDraft(),forwardedTopicId:'demo-rail-rules'});
+  assert.equal(row.forwarded.discussionType,'资料分享');await call(state,'/forum/topics/'+row.id+'/review','POST',{status:'approved'},'demo-admin');
+  await call(state,'/forum/topics/demo-rail-rules/review','POST',{status:'hidden',note:'测试隐藏'},'demo-admin');assert.deepEqual((await call(state,'/forum/topics/'+row.id)).topic.forwarded,{unavailable:true});
+  await call(state,'/forum/topics/'+row.id+'/delete','POST',{note:'测试删除'});await assert.rejects(call(state,'/forum/topics/'+row.id));
+  const deleted=(await call(state,'/my/forum')).find(t=>t.id===row.id);for(const key of ['sourceName','sourceUrl','discussionType','forwardedTopicId','forwarded'])assert.equal(deleted[key],undefined);
+});
+test('railway bans and blocks affect reading and posting while other boards remain usable', async () => {
+  const state=createDemoState();await call(state,'/forum/restrictions','POST',{board:'淮新高铁',userId:'demo-member',action:'kick',reason:'测试限制'},'demo-admin');
+  assert.ok((await call(state,'/forum/topics')).every(t=>t.category!=='淮新高铁'));await assert.rejects(call(state,'/forum/topics/demo-rail-rules'));await assert.rejects(call(state,'/forum/topics','POST',railDraft()));
+  await call(state,'/forum/topics','POST',{...railDraft(),category:'乡情闲聊'});
+  await call(state,'/forum/restrictions','POST',{board:'淮新高铁',userId:'demo-member',action:'restore',reason:'恢复参与'},'demo-admin');
+  await call(state,'/members/demo-admin/block','POST',{active:true});await assert.rejects(call(state,'/forum/topics/demo-rail-rules'));await assert.rejects(call(state,'/forum/topics/demo-rail-rules/replies','POST',{content:'演示回复'}));
+});
+test('railway pin cap and revisions are enforced and hidden topics lose promotion', async () => {
+  const state=createDemoState();for(let i=0;i<2;i++){const row=await call(state,'/forum/topics','POST',{...railDraft(),title:'新置顶演示话题'+i});await call(state,'/forum/topics/'+row.id+'/review','POST',{status:'approved'},'demo-admin');await call(state,'/forum/topics/'+row.id+'/promotion','PUT',{revision:0,pinned:true},'demo-admin');}
+  await assert.rejects(call(state,'/forum/topics/demo-rail-transfer/promotion','PUT',{revision:1,pinned:true},'demo-admin'));
+  await assert.rejects(call(state,'/forum/topics/demo-rail-rules/promotion','PUT',{revision:0,hot:false},'demo-admin'));
+  await call(state,'/forum/topics/demo-rail-rules/review','POST',{status:'hidden',note:'测试隐藏'},'demo-admin');await call(state,'/forum/topics/demo-rail-rules/review','POST',{status:'approved'},'demo-admin');const row=(await call(state,'/forum/topics/demo-rail-rules')).topic;assert.equal(row.pinned,false);assert.equal(row.hot,false);
+  assert.equal(row.promotionRevision,2);await assert.rejects(call(state,'/forum/topics/demo-rail-rules/promotion','PUT',{revision:1,pinned:true},'demo-admin'),/已更新/);
+  await call(state,'/forum/topics/demo-rail-rules/promotion','PUT',{revision:2,hot:true},'demo-admin');await call(state,'/forum/topics/demo-rail-rules/delete','POST',{note:'测试删除推荐'},'demo-admin');
+  assert.equal(state.topics.find(t=>t.id==='demo-rail-rules').promotionRevision,4);
+});
 test('AI demo is explicitly labeled and never changes stored business data', async () => {
   const state=createDemoState(), before=structuredClone(state);assert.equal((await call(state,'/ai/status')).demo,true);
   for(const question of ['报名进度','活动邀请','照片表情','互助草稿','unknown']) {const reply=await call(state,'/ai/messages','POST',{consent:true,messages:[{role:'user',content:question}]});assert.equal(reply.demo,true);assert.ok(reply.content);}

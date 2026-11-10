@@ -2,7 +2,7 @@
 export const homeShortcuts = [
   {id:'events',label:'乡情活动',icon:'calendar',tone:'blue'},
   {id:'life',label:'生活服务',icon:'heart',tone:'green'},
-  {id:'forum',label:'老乡论坛',icon:'chat',tone:'coral'},
+  {id:'railway',label:'高铁论坛',icon:'chat',tone:'gold'},
   {id:'addressbook',label:'乡友通讯录',icon:'people',tone:'gold'},
   {id:'gallery',label:'相聚相册',icon:'book',tone:'purple'},
   {id:'assistant',label:'AI 助手',icon:'grid',tone:'blue'}

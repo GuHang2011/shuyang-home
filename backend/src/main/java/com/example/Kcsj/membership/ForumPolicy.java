@@ -6,7 +6,24 @@ import static com.example.Kcsj.membership.MemberStore.*;
 
 @Service
 public class ForumPolicy {
-    public static final List<String> BOARDS=Arrays.asList("乡情闲聊","苏州生活","创业交流","家乡故事");
+    public static final String RAILWAY_BOARD="淮新高铁";
+    public static final List<String> BOARDS=Arrays.asList("乡情闲聊","苏州生活","创业交流","家乡故事",RAILWAY_BOARD);
+    public static final List<String> RAILWAY_TYPES=Arrays.asList("进展讨论","站点与接驳","返乡出行","资料分享","提问求证");
+    public static Map<String,Object> railwayMetadata(Map<String,Object> input,String board) {
+        if(!RAILWAY_BOARD.equals(board))return Collections.emptyMap();
+        String type=MemberData.text(input,"discussionType",0,40);
+        if(type.isEmpty())type=RAILWAY_TYPES.get(0);
+        if(!RAILWAY_TYPES.contains(type))throw new ApiException(400,"请选择有效的高铁话题类型");
+        String name=MemberData.text(input,"sourceName",0,100),url=MemberData.text(input,"sourceUrl",0,1000);
+        if(name.isEmpty()!=url.isEmpty())throw new ApiException(400,"来源名称与原文链接请一起填写");
+        if(!url.isEmpty()) {
+            try {
+                java.net.URI uri=new java.net.URI(url);
+                if(!Arrays.asList("http","https").contains(uri.getScheme())||uri.getHost()==null||uri.getUserInfo()!=null||uri.getPort()>65535||url.matches(".*[\\\\<>\\p{Cntrl}].*"))throw new IllegalArgumentException();
+            }catch(Exception e){throw new ApiException(400,"原文链接须为有效的http或https地址，不可包含账号信息");}
+        }
+        return map("discussionType",type,"sourceName",name,"sourceUrl",url);
+    }
     private final MemberStore store;private final MemberAuth auth;
     public ForumPolicy(MemberStore store,MemberAuth auth){this.store=store;this.auth=auth;}
     public boolean moderates(Map<String,Object> actor,String board){return auth.isStaff(actor)||(actor!=null&&b(actor,"enabled")&&s(actor,"status").equals("approved")&&s(actor,"role").equals("moderator")&&actor.get("forumBoards") instanceof List&&((List<?>)actor.get("forumBoards")).contains(board));}
