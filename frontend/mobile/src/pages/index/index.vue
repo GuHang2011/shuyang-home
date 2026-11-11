@@ -106,9 +106,9 @@ onShareAppMessage(() => tab.value === 'railway' ? ({ title: '一凡说高铁 · 
 
 <template>
   <view :class="['page','skin-surface','skin-' + appearance.skin.value, { 'custom-skin': appearance.skin.value !== 'classic', 'home-page': tab === 'home' && !screen }]">
-    <AppearancePickerMobile :value="appearance.choice.value" :notice="appearance.notice.value" @select="appearance.select"/>
+    <AppearancePickerMobile :value="appearance.choice.value" :notice="appearance.notice.value" :show-back="tab !== 'home' && !screen" @select="appearance.select" @back="go('home')"/>
     <BroadcastBannerMobile :key="broadcast ? broadcast.id + ':' + broadcast.revision : 'none'" :row="broadcast" :count="broadcasts.length" :error="broadcastError" :loading="broadcastLoading" @dismiss="dismissBroadcast" @next="nextBroadcast" @refresh="refreshBroadcasts"/>
-    <view v-if="tab !== 'home' && !screen" class="feature-mobile-nav"><button class="text-button" @click="go('home')">‹ 返回首页</button><button class="text-button" @click="go('appearance')">界面主题</button></view><RailwayCelebrationMobile :active="tab === 'home' && !screen && foreground" @open="go('railway')"/>
+    <RailwayCelebrationMobile :active="tab === 'home' && !screen && foreground" @open="go('railway')"/>
     <view v-if="error" class="error"><text>{{ error }}</text><button class="text-button" @click="load">重新加载</button></view>
     <view v-if="loading" class="loading">正在加载…</view>
     <template v-if="!screen">

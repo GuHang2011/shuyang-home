@@ -1,5 +1,11 @@
 # 界面截图
 
+## v1.11.1 字体与布局
+
+[电脑论坛](railway-layout-desktop-1111.png) · [手机H5论坛](railway-layout-phone-1111.png) · [深色手机论坛](railway-layout-night-1111.png) · [电脑首页](home-layout-desktop-1111.png)。
+
+本组为2026-11-11的隔离Chromium页面，手机390px、电脑1440px。展示统一字体、缩短的论坛工具栏和帖子列表；会员及话题都是虚构示例，城市图片来源沿用[素材说明](../素材来源.md)。详见[布局验收](../字体与布局优化-v1.11.1.md)。
+
 ## v1.11.0 淮新高铁论坛
 
 [电脑讨论区](railway-forum-desktop-1110.png) · [手机H5讨论区](railway-forum-phone-1110.png) · [深色手机讨论区](railway-forum-night-1110.png) · [资料与常识](railway-reference-1110.png)。

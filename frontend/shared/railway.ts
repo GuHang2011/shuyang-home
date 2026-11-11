@@ -25,9 +25,9 @@ export const railwaySections = [
   { id: 'reference', label: '资料与常识' }
 ] as const;
 export const railwayReadingSteps = [
-  { title: '看原始出处', text: '附上发布单位、原文链接和发布日期；转来的截图尽量找到完整原文。' },
-  { title: '分清项目阶段', text: '规划研究、项目批复、施工建设与运营开通不是同一件事，讨论时说明原文所处阶段。' },
-  { title: '说清个人判断', text: '站点猜测、接驳设想和个人解读请写明是观点。尚未确认的信息，可以发起“提问求证”。' }
+  { title: '消息附上原文', text: '写明发布单位和日期，转来的截图尽量找到原文链接。' },
+  { title: '进度说清阶段', text: '列入规划、获批、开工和通车是不同阶段，请按原文表述。' },
+  { title: '观点说明依据', text: '站点设想、接驳建议可以讨论；不确定的消息，发到“提问求证”。' }
 ];
 export const railwayStages = [
   { title: '规划研究', text: '关注规划文件中的项目名称、范围和表述。列入规划不等于已经开工。' },

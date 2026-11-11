@@ -15,11 +15,11 @@ async function share() {
 </script>
 <template>
   <div class="railway-hub">
-    <header class="rail-masthead"><div><p class="rail-kicker">沭阳之家 / 淮新高铁论坛</p><h1 class="rail-page-title">一凡说高铁 <span class="hot-badge">HOT</span></h1><p class="rail-lead">聊进展、问接驳，也分享返乡路上的经验。</p></div><button class="rail-button rail-outline" @click="share">分享专题 ↗</button></header>
+    <header class="rail-masthead"><div><p class="rail-kicker">淮新高铁 · 乡友交流</p><h1 class="rail-page-title">一凡说高铁 <span class="hot-badge">HOT</span></h1><p class="rail-lead">看进展，聊接驳，分享返乡经验。</p></div><button class="rail-button rail-outline" @click="share">分享专题 ↗</button></header>
     <p v-if="message" class="rail-feedback" role="status">{{ message }}</p>
     <nav class="rail-section-tabs" aria-label="高铁专题栏目"><button v-for="item in railwaySections" :key="item.id" :class="{active:active===item.id}" :aria-pressed="active===item.id" @click="active=item.id">{{ item.label }}<span v-if="item.id==='news'" class="rail-tab-count">{{ articles.length }}</span></button></nav>
     <div v-show="active==='discussion'" class="rail-discussion-layout">
-      <div class="rail-discussion-main"><ForumHub :user="user" :active="active==='discussion'" :board="RAILWAY_BOARD" title="淮新高铁讨论区" intro="提问、分享资料或说说你的看法。新帖与回复审核后公开。" embedded @join="emit('join')"/></div>
+      <div class="rail-discussion-main"><ForumHub :user="user" :active="active==='discussion'" :board="RAILWAY_BOARD" title="讨论区" intro="新帖与回复审核后公开。" embedded @join="emit('join')"/></div>
       <aside class="rail-side"><section class="rail-card"><p class="rail-kicker">发帖前看一眼</p><h2 class="rail-section-title">让消息有出处</h2><ol class="rail-reading-list"><li v-for="step in railwayReadingSteps" :key="step.title"><strong>{{ step.title }}</strong><p>{{ step.text }}</p></li></ol><button class="rail-text-button" @click="active='reference'">查看常见问题与官方入口 →</button></section><section class="rail-side-note"><h2>在这里怎样交流</h2><p>可上传照片、语音，引用楼层继续讨论。请尊重不同意见，不公开他人的电话号码或个人资料。</p><p>版主可以审核、置顶、推荐热帖及处理违规内容。</p></section></aside>
     </div>
     <section v-show="active==='news'" class="rail-news" aria-label="资讯与解读">

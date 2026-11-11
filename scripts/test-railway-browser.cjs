@@ -14,7 +14,7 @@ function sampleWav() {
 async function run() {
   fs.mkdirSync(out,{recursive:true});
   const { createDemoState, demoRequest } = await import(pathToFileURL(path.join(root,'frontend/demo/demo-runtime.mjs')));
-  const state = createDemoState(), checks = [], errors = [], apiErrors = [];
+  const state = createDemoState(), checks = [], errors = [], apiErrors = [], layouts = [], fonts = [];
   const check = name => { checks.push(name);console.log('PASS: '+name); };
   const server = http.createServer(async (req,res) => {
     try {
@@ -42,8 +42,44 @@ async function run() {
   const switchActor=async(p,actor)=>{await Promise.all([p.waitForEvent('load'),p.getByLabel('演示身份',{exact:true}).selectOption(actor)]);await openRail(p,false);};
   async function fit(p,label) {
     await expect.poll(()=>p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
-    const overflow=await p.locator('.railway-hub button, .railway-hub uni-button, .railway-hub input, .railway-hub textarea, .railway-hub select').evaluateAll(els=>els.filter(el=>el.getClientRects().length).filter(el=>{const r=el.getBoundingClientRect();return r.left< -1 || r.right>innerWidth+1 || el.scrollWidth>el.clientWidth+2;}).map(el=>({text:el.textContent.slice(0,80),tag:el.tagName,width:el.clientWidth,scroll:el.scrollWidth})));
+    const overflow=await p.locator('.railway-hub button, .railway-hub uni-button, .railway-hub input, .railway-hub textarea, .railway-hub select').evaluateAll(els=>els.filter(el=>el.getClientRects().length).filter(el=>{
+      const r=el.getBoundingClientRect(), strip=el.closest('.forum-category-strip, .forum-tabs');
+      const viewport=[...(strip?.closest('.forum-strip-scroll')?.querySelectorAll('.uni-scroll-view')||[])].find(node=>['auto','scroll'].includes(getComputedStyle(node).overflowX))||strip;
+      const clipped=viewport&&['auto','scroll'].includes(getComputedStyle(viewport).overflowX)&&viewport.getBoundingClientRect().left>=-1&&viewport.getBoundingClientRect().right<=innerWidth+1;
+      return ((!clipped)&&(r.left< -1 || r.right>innerWidth+1)) || el.scrollWidth>el.clientWidth+2;
+    }).map(el=>({text:el.textContent.slice(0,80),tag:el.tagName,width:el.clientWidth,scroll:el.scrollWidth})));
     expect(overflow, label+' controls fit').toEqual([]);
+    const shortControls=await p.locator('.rail-section-tabs > button, .rail-section-tabs > uni-button, .forum-tabs > *, .forum-category-strip > *, .forum-list-tools > input, .forum-list-tools > uni-input, .forum-list-tools select, .forum-sort .picker-value, .forum-heading > .primary').evaluateAll(els=>els.filter(el=>el.getClientRects().length).filter(el=>el.getBoundingClientRect().height<43.9).map(el=>({text:el.textContent.slice(0,40),height:el.getBoundingClientRect().height})));
+    expect(shortControls,label+' touch controls are at least 44px high').toEqual([]);
+    const smallSearch=await p.locator('.forum-list-tools input, .forum-list-tools > uni-input').evaluateAll(els=>els.filter(el=>el.getClientRects().length&&parseFloat(getComputedStyle(el).fontSize)<16).map(el=>({tag:el.tagName,font:getComputedStyle(el).fontSize})));
+    expect(smallSearch,label+' search uses at least 16px to avoid iOS focus zoom').toEqual([]);
+  }
+  async function scrollCategories(p,forum) {
+    const strip=forum.locator('.forum-category-strip');
+    await expect(strip).toBeVisible();
+    const scrolling=await strip.evaluate(el=>{const viewport=[...(el.closest('.forum-strip-scroll')?.querySelectorAll('.uni-scroll-view')||[])].find(node=>['auto','scroll'].includes(getComputedStyle(node).overflowX))||el;return viewport.scrollWidth>viewport.clientWidth+1;});
+    if(!scrolling)return;
+    await strip.evaluate(el=>{const viewport=[...(el.closest('.forum-strip-scroll')?.querySelectorAll('.uni-scroll-view')||[])].find(node=>['auto','scroll'].includes(getComputedStyle(node).overflowX))||el;viewport.scrollLeft=viewport.scrollWidth;});
+    const last=strip.locator('button, uni-button').last();
+    await expect.poll(()=>last.evaluate(el=>{const viewport=[...(el.closest('.forum-strip-scroll')?.querySelectorAll('.uni-scroll-view')||[])].find(node=>['auto','scroll'].includes(getComputedStyle(node).overflowX))||el.parentElement;const r=el.getBoundingClientRect(),s=viewport.getBoundingClientRect();return r.left>=s.left-1&&r.right<=s.right+1;})).toBe(true);
+    await last.click();await expect(last).toHaveAttribute('aria-pressed','true');
+    await strip.evaluate(el=>{const viewport=[...(el.closest('.forum-strip-scroll')?.querySelectorAll('.uni-scroll-view')||[])].find(node=>['auto','scroll'].includes(getComputedStyle(node).overflowX))||el;viewport.scrollLeft=0;});
+    await click(strip,'全部');await expect(strip.locator('button, uni-button').first()).toHaveAttribute('aria-pressed','true');
+    await expect.poll(()=>p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
+  }
+  async function inspectFonts(p,mobile) {
+    const cdp=await p.context().newCDPSession(p);
+    await cdp.send('DOM.enable');await cdp.send('CSS.enable');
+    const {root:document}=await cdp.send('DOM.getDocument');
+    for(const selector of ['.rail-page-title',mobile?'.forum-mobile .post-excerpt':'.forum-hub .forum-topic-excerpt']) {
+      const {nodeId}=await cdp.send('DOM.querySelector',{nodeId:document.nodeId,selector});
+      expect(nodeId,selector+' exists for font audit').toBeGreaterThan(0);
+      const {fonts:rendered}=await cdp.send('CSS.getPlatformFontsForNode',{nodeId});
+      expect(rendered.length,selector+' has rendered text').toBeGreaterThan(0);
+      expect(rendered.filter(f=>/SimSun|Songti|Times New Roman/i.test(f.familyName)),selector+' renders with sans Chinese fonts').toEqual([]);
+      fonts.push({platform:mobile?'H5':'Web',selector,rendered});
+    }
+    await cdp.detach();
   }
   async function darkContrast(p) {
     const contrasts=await p.locator('.forum-railway-filters button, .forum-railway-filters uni-button, .forum-tabs button, .forum-tabs .pill, .forum-mobile .post-excerpt, .forum-hub .topic-row > p').evaluateAll(els=>{
@@ -76,27 +112,36 @@ async function run() {
       await expect(page.locator('.rail-page-title')).toContainText('HOT');
       check((mobile?'H5':'Web')+' dedicated railway board has only three railway samples');
       for(const theme of ['amber','classic','night']) {
-        if(mobile){await page.locator('.appearance-mobile-bar uni-button').click();await page.locator('.appearance-option.skin-'+theme).filter({hasText:new RegExp('^'+{amber:'温暖乡情',classic:'简洁商务',night:'深色'}[theme])}).click();await page.locator('.appearance-mobile-bar uni-button').click();}
+        if(mobile){await page.locator('.appearance-toggle').click();await page.locator('.appearance-option.skin-'+theme).filter({hasText:new RegExp('^'+{amber:'温暖乡情',classic:'简洁商务',night:'深色'}[theme])}).click();await page.locator('.appearance-toggle').click();}
         else {await page.evaluate(theme=>localStorage.setItem('shuyang_home_appearance',theme),theme);await page.reload();}
         await expect(page.locator('html')).toHaveAttribute('data-skin',theme);
         const close=page.locator('.rail-celebrate-close');if(await close.isVisible())await close.click();
         const broadcast=page.getByText('本次关闭',{exact:true});if(!mobile)await expect(broadcast).toBeVisible();if(await broadcast.isVisible())await broadcast.click();
         for(const width of [1440,390,320]) {
           await page.setViewportSize({width,height:1080});await fit(page,(mobile?'H5':'Web')+' '+theme+' '+width);
+          await scrollCategories(page,forum);
           await page.evaluate(()=>window.scrollTo(0,0));
           await page.mouse.move(2,2);
           if(!mobile)await expect.poll(()=>page.evaluate(()=>document.querySelector('.topbar').getBoundingClientRect().bottom<=document.querySelector('.rail-masthead .rail-kicker').getBoundingClientRect().top)).toBe(true);
+          layouts.push({platform:mobile?'H5':'Web',theme,width,...await rows().first().evaluate(el=>({firstTopicTop:Math.round(el.getBoundingClientRect().top+scrollY),firstTopicHeight:Math.round(el.getBoundingClientRect().height)}))});
           await page.screenshot({path:path.join(out,(mobile?'h5':'web')+'-'+theme+'-'+width+'.png'),animations:'disabled',fullPage:true});
           if(width===(mobile?390:1440))await page.screenshot({path:path.join(out,(mobile?'h5':'web')+'-'+theme+'-overview.png'),animations:'disabled'});
           if(theme==='night')await darkContrast(page);
           check((mobile?'H5':'Web')+' '+theme+' '+width+' layout');
         }
       }
+      await inspectFonts(page,mobile);check((mobile?'H5':'Web')+' rendered Chinese heading and body fonts are sans');
       await page.setViewportSize({width:mobile?390:1440,height:1080});
       await click(forum.locator('.forum-railway-filters'),'站点与接驳');await expect(rows()).toHaveCount(1);await expect(rows()).toContainText('接驳问题');
       await click(forum.locator('.forum-railway-filters'),'全部');await click(forum.locator('.forum-tabs'),'热帖');await expect(rows()).toHaveCount(2);
       await click(forum.locator('.forum-tabs'),'全部话题');
-      if(mobile)await click(forum.locator('.forum-railway-filters'),'待回复');else await forum.getByLabel('排列方式').selectOption('unanswered');
+      if(mobile){
+        await forum.locator('.forum-sort').click();
+        const wheel=page.locator('.uni-picker-view-group');await wheel.hover();
+        await page.mouse.wheel(0,40);await page.mouse.wheel(0,40);
+        await expect.poll(()=>page.locator('.uni-picker-view-content .uni-picker-item').filter({hasText:'待回复'}).evaluate(el=>{const r=el.getBoundingClientRect(),s=el.closest('.uni-picker-view-group').querySelector('.uni-picker-view-indicator').getBoundingClientRect();return Math.abs(r.top+r.height/2-s.top-s.height/2)<1;})).toBe(true);
+        await page.locator('.uni-picker-action-confirm').click();await expect(forum.locator('.forum-sort')).toContainText('待回复');
+      }else await forum.getByLabel('排列方式').selectOption('unanswered');
       await expect(rows()).toHaveCount(3);check((mobile?'H5':'Web')+' category, hot and unanswered filters');
       await rows().filter({hasText:'先核对来源，再参与讨论'}).getByText('先核对来源，再参与讨论（演示版规）',{exact:true}).click();
       await expect(forum.locator('.forum-source-link')).toContainText('江苏省交通运输厅');
@@ -155,12 +200,25 @@ async function run() {
         await section(page,'资讯与解读');await expect.poll(()=>page.evaluate(()=>window.__railTestAudio.every(a=>a.paused))).toBe(true);
         await section(page,'高铁讨论');await expect(forum.locator('.forum-audio')).toContainText('播放语音');expect(await page.evaluate(()=>window.__railTestAudio.every(a=>a.paused))).toBe(true);
         check('H5 switching railway tabs pauses actual audio and does not resume it');
+        await click(page.locator('.bottom-nav'),'我的');await click(page,'退出');await click(page,'登录账号');
+        await page.locator('.field').filter({has:page.getByText('手机号 / 管理员账号',{exact:true})}).locator('input').fill('admin');
+        await page.locator('.field').filter({has:page.getByText('密码',{exact:true})}).locator('input').fill('Demo12345678');
+        await click(page,'登录，回家看看');await expect(page.getByText('演示管理员',{exact:true}).first()).toBeVisible();await openRail(page,true);
+        await click(forum.locator('.forum-tabs'),'版主管理');
+        const managed=forum.locator(':scope > .panel').filter({hasText:'先核对来源，再参与讨论（演示版规）'});
+        await expect(managed).toBeVisible();await click(managed,'隐藏');
+        await expect(forum.locator('.form-page').getByText('确认操作',{exact:true})).toBeVisible();
+        await expect(forum.getByText('＋ 发起话题',{exact:true})).toHaveCount(0);
+        await click(forum.locator('.form-page'),'← 返回');await expect(managed).toBeVisible();
+        await expect(forum.locator('.forum-heading').getByText('＋ 发起话题',{exact:true})).toBeVisible();
+        expect(state.topics.find(t=>t.id==='demo-rail-rules').status).toBe('approved');
+        check('H5 moderation confirmation hides new-topic action and cancel restores the list');
       }
       await context.close();
     }
     expect(errors).toEqual([]);expect(apiErrors).toEqual([]);
-    fs.writeFileSync(path.join(out,'results.json'),JSON.stringify({checks,errors,apiErrors},null,2));console.log('RESULT '+checks.length+' passed');
-  }catch(e){if(page&&!page.isClosed()){await page.screenshot({path:path.join(out,'failure.png'),fullPage:true});fs.writeFileSync(path.join(out,'failure.txt'),await page.locator('body').innerText());}throw e;}
+    fs.writeFileSync(path.join(out,'results.json'),JSON.stringify({checks,errors,apiErrors,layouts,fonts},null,2));console.log('RESULT '+checks.length+' passed');
+  }catch(e){if(page&&!page.isClosed()){await page.screenshot({path:path.join(out,'failure.png'),fullPage:true});fs.writeFileSync(path.join(out,'failure.txt'),await page.locator('body').innerText());fs.writeFileSync(path.join(out,'failure.html'),await page.content());fs.writeFileSync(path.join(out,'failure-results.json'),JSON.stringify({checks,errors,apiErrors,layouts,fonts},null,2));}throw e;}
   finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}
 }
 run().catch(e=>{console.error(e);process.exitCode=1;});

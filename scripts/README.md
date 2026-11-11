@@ -134,7 +134,7 @@ python scripts/summarize-business-files.py --run-prefix retest-20261102
 
 浏览器使用前端Playwright及其Chromium安装；可通过`SHUYANG_PLAYWRIGHT_MODULE`、`SHUYANG_CHROMIUM_PATH`指定其他安装位置。截图和结果写入被Git忽略的`output/railway-browser`。正式后端铁路权限与校验由`RailwayForumTests`验证，演示升级与权限由`node scripts/test-demo-runtime.mjs`验证。
 
-当前页面脚本29项，额外包含深色筛选按钮及摘要的4.5:1文字对比检查、Web上传并审核合成WAV、Web／H5实际音频在栏目切换时暂停和返回不自动播放。音频为本地生成的提示音，不含真人录音。
+当前页面脚本32项（v1.11.1），包含深色筛选按钮及摘要的4.5:1文字对比、Web上传并审核合成WAV、Web／H5音频暂停与返回不自动播放；新增实际渲染中文字体、横滑分类末项可达、原生排序选择、44px触控区域、16px搜索输入框和手机管理确认状态检查。记录首帖位置以对比布局密度。音频为本地生成的提示音，不含真人录音。
 
 ## v1.10.2 首页素材与布局
 
