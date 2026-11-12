@@ -1,8 +1,10 @@
 {
   "name": "shuyang-home-mobile",
-  "version": "1.11.1",
+  "version": "2.0.0",
   "private": true,
   "scripts": {
+    "prebuild:h5": "node ../../scripts/clean-build.cjs h5",
+    "prebuild:mp-weixin": "node ../../scripts/clean-build.cjs mp-weixin",
     "dev:h5": "uni -p h5",
     "build:h5": "uni build -p h5",
     "build:mp-weixin": "uni build -p mp-weixin"

@@ -1,9 +1,14 @@
-# Replace domain and TLS paths. Deploy only the web dist/ contents here.
+# Include this file in nginx's http block. Replace the domain and TLS paths.
+# Web: /var/www/shuyang-home; optional H5: /var/www/shuyang-home/mobile.
 limit_req_zone $binary_remote_addr zone=shuyang_login:10m rate=10r/m;
+map $uri $shuyang_cache {
+    default "no-store";
+    ~^/(mobile/)?assets/ "public, max-age=31536000, immutable";
+}
 server {
     listen 80;
     server_name members.example.com;
-    return 301 https://$host$request_uri;
+    return 308 https://members.example.com$request_uri;
 }
 server {
     listen 443 ssl;
@@ -13,29 +18,52 @@ server {
     root /var/www/shuyang-home;
     index index.html;
     client_max_body_size 64k;
+    server_tokens off;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    limit_req_status 429;
+    add_header Strict-Transport-Security "max-age=31536000" always;
     add_header X-Content-Type-Options nosniff always;
     add_header Referrer-Policy same-origin always;
     add_header X-Frame-Options DENY always;
+    add_header Cache-Control $shuyang_cache always;
     location ~ ^/api/auth/(login|register)$ {
         limit_req zone=shuyang_login burst=10 nodelay;
         rewrite ^/api/(.*)$ /$1 break;
         proxy_pass http://127.0.0.1:9999;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
     location /api/ {
         proxy_pass http://127.0.0.1:9999/;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $remote_addr;
-        proxy_read_timeout 30s;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 50s;
     }
     location = /api/media/upload {
         client_max_body_size 16m;
         proxy_pass http://127.0.0.1:9999/media/upload;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_read_timeout 60s;
     }
+    # A 2 MiB workbook grows to about 2.7 MiB in its JSON/base64 envelope.
+    location = /api/data-files/preview {
+        client_max_body_size 3m;
+        proxy_pass http://127.0.0.1:9999/data-files/preview;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    location ^~ /assets/ { try_files $uri =404; }
+    location ^~ /mobile/assets/ { try_files $uri =404; }
+    location ^~ /mobile/static/ { try_files $uri =404; }
+    location = /mobile { return 308 /mobile/; }
+    location /mobile/ { try_files $uri $uri/ /mobile/index.html; }
+    # Demo workers must never be deployed to the production site.
+    location ~ ^/(demo-worker\.js|demo-runtime\.mjs|demo-extensions\.mjs)$ { return 404; }
     location / { try_files $uri $uri/ /index.html; }
     location ~ /\. { deny all; }
 }

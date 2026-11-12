@@ -3,10 +3,10 @@ package com.example.Kcsj.membership;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.util.*;
@@ -20,13 +20,18 @@ public class MemberAuth {
     private final SecureRandom random=new SecureRandom();
     private final Map<String,long[]> attempts=new HashMap<>();
     @Value("${shuyang.admin-password:}") private String initialPassword;
+    @Value("${shuyang.production:false}") private boolean production;
     public MemberAuth(MemberStore store) { this.store=store; }
 
     @PostConstruct public void bootstrap() {
         if(store.all("user").stream().anyMatch(u->s(u,"role").equals("superadmin"))) return;
         Optional<Map<String,Object>> legacy=store.all("user").stream().filter(u->s(u,"username").equals("admin")&&s(u,"role").equals("admin")).findFirst();
         if(legacy.isPresent()){Map<String,Object> admin=legacy.get();admin.put("role","superadmin");store.save("user",admin);store.revoke(s(admin,"id"));audit(admin,"account.superadmin-migration",s(admin,"id"));return;}
-        if(store.all("user").stream().anyMatch(u->s(u,"role").equals("admin"))||initialPassword.isEmpty()) return;
+        if(store.all("user").stream().anyMatch(u->s(u,"role").equals("admin"))) return;
+        if(initialPassword.isEmpty()) {
+            if(production) throw new IllegalStateException("First production startup requires SHUYANG_ADMIN_PASSWORD; no administrator exists yet.");
+            return;
+        }
         passwordPolicy(initialPassword);
         Map<String,Object> admin=map("id",id(),"username","admin","name","平台管理员","phone","","role","superadmin",
             "status","approved","enabled",true,"mustChangePassword",true,"createdAt",now(),

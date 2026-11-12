@@ -1,7 +1,7 @@
 package com.example.Kcsj.membership;
 
 import org.springframework.web.bind.annotation.*;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import static com.example.Kcsj.membership.MemberStore.*;

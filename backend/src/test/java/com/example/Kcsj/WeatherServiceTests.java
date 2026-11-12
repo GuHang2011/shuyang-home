@@ -6,7 +6,7 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.http.MediaType;
 import java.util.*;
 import java.net.URLDecoder;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.test.util.ReflectionTestUtils;
 import static com.example.Kcsj.membership.MemberStore.map;
 import static org.junit.jupiter.api.Assertions.*;

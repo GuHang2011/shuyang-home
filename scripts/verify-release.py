@@ -38,6 +38,13 @@ with zipfile.ZipFile(archive) as z:
         assert z.read(entries[name + '/' + relative]) == path.read_bytes(), relative
 with zipfile.ZipFile(folder / ('backend/shuyang-home-' + version + '.jar')) as jar:
     classes = jar.namelist()
+    if tuple(map(int, version.split('.'))) >= (2, 0, 0):
+        assert 'BOOT-INF/classes/application-prod.properties' in classes
+        assert 'BOOT-INF/classes/com/example/Kcsj/common/ProductionConfig.class' in classes
+        for client, target in [('web', 'web'), ('mobile-h5', 'h5'), ('wechat-dev-build', 'mp-weixin')]:
+            meta = json.loads((folder / client / 'release.json').read_text(encoding='utf-8'))
+            assert meta == {'version': version, 'target': target, 'demo': False}, client + ': stale or wrong build'
+        assert not (folder / 'web' / 'demo-worker.js').exists(), 'Demo worker in production package'
     for required in ['ChatController', 'WeatherController', 'WeatherService', 'MediaService', 'MediaController', 'GalleryController', 'ShopController', 'CheckinController', 'ForumPolicy', 'ForumModerationController']:
         assert 'BOOT-INF/classes/com/example/Kcsj/membership/' + required + '.class' in classes
     if tuple(map(int, version.split('.'))) >= (1, 4, 0):

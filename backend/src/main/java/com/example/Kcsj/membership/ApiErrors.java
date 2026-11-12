@@ -9,9 +9,10 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
 
 @RestControllerAdvice
@@ -29,6 +30,8 @@ public class ApiErrors {
     public ResponseEntity<Map<String,Object>> method(Exception e) { return api(new ApiException(405, "该接口不支持此操作方式")); }
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     public ResponseEntity<Map<String,Object>> media(Exception e) { return api(new ApiException(415, "请求内容类型不受支持")); }
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String,Object>> missing(Exception e) { return api(new ApiException(404, "访问的内容不存在")); }
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String,Object>> unknown(Exception e, HttpServletRequest request) {
         String path = request != null ? request.getRequestURI() : "unknown";

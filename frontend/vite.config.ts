@@ -13,7 +13,9 @@ function demoAssets(): Plugin {
 }
 
 export default defineConfig(({ mode }) => ({
-	plugins: [vue(), ...(mode === 'demo' ? [demoAssets()] : [])],
+	plugins: [vue(), { name: 'release-metadata', generateBundle() {
+		this.emitFile({ type: 'asset', fileName: 'release.json', source: JSON.stringify({ version: readFileSync(resolve(__dirname, '../VERSION'), 'utf8').trim(), target: 'web', demo: mode === 'demo' }) });
+	} }, ...(mode === 'demo' ? [demoAssets()] : [])],
 	define: { __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false },
 	resolve: {
 		alias: [

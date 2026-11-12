@@ -1,10 +1,12 @@
 {
   "name": "shuyang-home-web",
-  "version": "1.11.1",
+  "version": "2.0.0",
   "private": true,
   "description": "沭阳之家会员系统 · 乡情相聚，守望相助",
   "license": "MIT",
   "scripts": {
+    "prebuild": "node ../scripts/clean-build.cjs web",
+    "prebuild:demo": "node ../scripts/clean-build.cjs demo",
     "dev": "vite",
     "typecheck": "vue-tsc --noEmit",
     "test:regression": "node ../scripts/test-request-scopes.cjs && node ../scripts/test-weather.cjs && node ../scripts/test-audit-regressions.cjs && npm run test:mobile && node ../scripts/test-photo-uploads.cjs && npm run test:modules && npm run test:stickers && npm run test:files && npm run test:work && npm run test:broadcast && npm run test:appearance && npm run test:ai && npm run test:member-card && npm run test:life && npm run test:people && npm run test:railway",

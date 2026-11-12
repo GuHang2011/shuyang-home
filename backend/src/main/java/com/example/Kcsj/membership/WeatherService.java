@@ -26,7 +26,7 @@ public class WeatherService {
     public Object forecast(String latitude,String longitude){
         double lat=coordinate(latitude,-90,90),lon=coordinate(longitude,-180,180);lat=Math.round(lat*100)/100.0;lon=Math.round(lon*100)/100.0;
         String key="weather:"+lat+":"+lon;Cache old=cache.get(key);if(old!=null&&old.expires>System.currentTimeMillis())return old.value;
-        URI uri=UriComponentsBuilder.fromHttpUrl("https://api.open-meteo.com/v1/forecast").queryParam("latitude",lat).queryParam("longitude",lon)
+        URI uri=UriComponentsBuilder.fromUriString("https://api.open-meteo.com/v1/forecast").queryParam("latitude",lat).queryParam("longitude",lon)
             .queryParam("current","temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m")
             .queryParam("daily","weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max").queryParam("timezone","Asia/Shanghai").queryParam("forecast_days",3).build().encode().toUri();
         Map<String,Object> raw=fetch(uri);if(!(raw.get("current") instanceof Map)||!(raw.get("daily") instanceof Map)||((Map<?,?>)raw.get("current")).get("temperature_2m")==null)throw new ApiException(503,"暂时没有可用的天气数据，请稍后重试");
@@ -39,7 +39,7 @@ public class WeatherService {
         Cache old = cache.get(key);
         if (old != null && old.expires > System.currentTimeMillis()) return old.value;
         // Query only the request address resolved through the configured trusted proxy.
-        URI uri = UriComponentsBuilder.fromHttpUrl("https://ipwho.is/" + ip)
+        URI uri = UriComponentsBuilder.fromUriString("https://ipwho.is/" + ip)
             .queryParam("lang", "zh-CN").build().encode().toUri();
         Map<String,Object> raw;
         try { raw = fetch(uri); }
@@ -109,7 +109,7 @@ public class WeatherService {
     }
 
     @SuppressWarnings("unchecked") private List<Map<String,Object>> searchPlaces(String name) {
-        URI uri = UriComponentsBuilder.fromHttpUrl("https://geocoding-api.open-meteo.com/v1/search")
+        URI uri = UriComponentsBuilder.fromUriString("https://geocoding-api.open-meteo.com/v1/search")
             .queryParam("name", name).queryParam("count", 20).queryParam("language", "zh")
             .queryParam("format", "json").build().encode().toUri();
         Map<String,Object> raw = fetch(uri);

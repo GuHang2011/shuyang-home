@@ -2,7 +2,7 @@ package com.example.Kcsj.membership;
 
 import org.springframework.web.bind.annotation.*;
 import org.springframework.transaction.annotation.Transactional;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.time.*;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -19,7 +19,6 @@ public class MemberController {
         List<Map<String,Object>> rows=store.all(kind);
         rows.sort(Comparator.comparing((Map<String,Object> x)->s(x,"createdAt")).reversed());return rows;
     }
-    @GetMapping("/health") public Map<String,Object> health() {return ApiResponse.ok(map("status","up","application","shuyang-home"));}
     @PostMapping("/auth/register") public Map<String,Object> register(@RequestBody Map<String,Object> input,HttpServletRequest req) {return ApiResponse.ok(auth.register(input,req.getRemoteAddr()));}
     @PostMapping("/auth/login") public Map<String,Object> login(@RequestBody Map<String,Object> input,HttpServletRequest req) {return ApiResponse.ok(auth.login(input,req.getRemoteAddr()));}
     @GetMapping("/auth/me") public Map<String,Object> me(HttpServletRequest req) {return ApiResponse.ok(self(auth.require(req)));}

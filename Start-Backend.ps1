@@ -5,9 +5,12 @@ if ($releaseVersion -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid VERSION file.'
 $backendJar = "target\shuyang-home-$releaseVersion.jar"
 Set-Location -LiteralPath (Join-Path $PSScriptRoot 'backend')
 if (-not $env:JAVA_HOME) {
-  $jdk = Get-ChildItem -Path 'C:\Program Files\Java' -Directory -Filter 'jdk*' -ErrorAction SilentlyContinue | Sort-Object Name -Descending | Select-Object -First 1
-  if ($jdk) { $env:JAVA_HOME = $jdk.FullName }
+  throw 'Install JDK 21 and set JAVA_HOME to its directory before starting the backend.'
 }
+$java = Join-Path $env:JAVA_HOME 'bin\java.exe'
+try { $javaVersion = (& $java --version 2>&1 | Out-String) }
+catch { throw 'JDK 21 or newer is required. Check JAVA_HOME.' }
+if ($javaVersion -notmatch '(?:openjdk|java) (\d+)' -or [int]$Matches[1] -lt 21) { throw 'JDK 21 or newer is required. Java 8 cannot run this release.' }
 if ($Build -or -not (Test-Path -LiteralPath $backendJar)) {
   $buildOptions = @('clean', 'package')
   $cachedRepository = Join-Path $PSScriptRoot '.cache\m2'

@@ -3,7 +3,7 @@ package com.example.Kcsj.membership;
 import org.springframework.stereotype.Service;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.multipart.MultipartFile;
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import javax.imageio.*;
 import javax.imageio.stream.ImageInputStream;
 import java.awt.image.BufferedImage;

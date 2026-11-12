@@ -1,7 +1,7 @@
 package com.example.Kcsj;
 
 import com.example.Kcsj.membership.*;
-import com.fasterxml.jackson.databind.*;
+import tools.jackson.databind.*;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.*;
 import org.springframework.mock.web.MockHttpServletRequest;

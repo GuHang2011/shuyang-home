@@ -24,7 +24,10 @@ export async function api<T = any>(path: string, method = 'GET', body?: unknown)
   const requestToken = getToken();
   const timeout = window.setTimeout(() => controller.abort(), path === '/ai/messages' ? 45000 : 20000);
   try {
-    const response = await fetch('/api' + path, { method, headers: { 'Content-Type': 'application/json', ...(requestToken ? { Authorization: 'Bearer ' + requestToken } : {}) }, body: body === undefined ? undefined : JSON.stringify(body), signal: controller.signal });
+    const response = await fetch('/api' + path, { method, headers: { 'Content-Type': 'application/json', ...(requestToken ? { Authorization: 'Bearer ' + requestToken } : {}) }, body: body === undefined ? undefined : JSON.stringify(body), signal: controller.signal }).catch(error => {
+      if (error instanceof TypeError) throw new Error('连接失败，请检查网络后重试');
+      throw error;
+    });
     const result = await response.json().catch(() => ({ message: '服务响应异常，请稍后重试' }));
     if (!response.ok || result.code !== 0) {
       if (response.status === 401 && requestToken && requestToken === getToken()) { setToken(''); window.dispatchEvent(new Event('session-expired')); }

@@ -141,3 +141,11 @@ python scripts/summarize-business-files.py --run-prefix retest-20261102
 先构建Web演示和H5，再运行 `node scripts/test-home-materials.cjs`。脚本使用隔离静态服务器与演示数据，检查三套主题、1440／390／320px、素材载入与署名、公告过滤、轮播控制条和移动swiper高度，不需要业务后端。结果与截图保存在Git忽略的 `output/home-materials`。
 
 默认使用前端安装的Playwright及其Chromium。`SHUYANG_PLAYWRIGHT_MODULE`可指定模块路径；`SHUYANG_CHROMIUM_PATH`可指定本机Chromium可执行文件。`SHUYANG_BROWSER=webkit`改用WebKit，`SHUYANG_WEBKIT_PATH`可指定已安装内核，输出写入独立的 `output/home-materials-webkit`。`test-demo-browser.cjs`也支持 `SHUYANG_CHROMIUM_PATH`。
+
+## v2.0.0 安装与部署验收
+
+`test-production-runtime.py` 使用当前版本 JAR 和临时加密文件库，验证生产配置拒绝、强制改密、真实申请审核、停机复制和恢复。先设置 `JAVA_HOME` 为 JDK 21，再运行 `python scripts/test-production-runtime.py`；不读取真实业务库。
+
+`test-production-proxy.py` 额外使用本机 Nginx 和 OpenSSL，设置 `SHUYANG_NGINX_PATH`、`SHUYANG_OPENSSL_PATH` 后运行。它从部署模板启动隔离 HTTPS 代理，校验 Web／H5 子路径、静态资源、权限和请求大小。设置 `SHUYANG_CHROMIUM_PATH` 时，还调用 `test-production-browser.cjs` 检查真实生产网页的390px布局、图片和演示隔离。所有进程在结束时退出，结果放在被忽略的 `output/production-*`。
+
+`create-production-config.py` 仅用于新安装，独占创建私有配置，不覆盖已有密码／密钥。`check-deployment.py` 可在部署后执行只读 HTTPS 检查。完整操作见[上线准备](../docs/上线准备-v2.0.0.md)。

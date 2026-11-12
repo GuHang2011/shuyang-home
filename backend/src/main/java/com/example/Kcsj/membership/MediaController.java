@@ -4,7 +4,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.*;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import static com.example.Kcsj.membership.MemberStore.*;

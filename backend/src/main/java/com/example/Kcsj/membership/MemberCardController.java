@@ -2,7 +2,7 @@ package com.example.Kcsj.membership;
 
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.*;
