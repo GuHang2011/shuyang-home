@@ -4,6 +4,7 @@ Requires JAVA_HOME, SHUYANG_NGINX_PATH and SHUYANG_OPENSSL_PATH. Uses only tempo
 data, local ports and a generated local TLS certificate; never changes system services.
 """
 import base64
+import gzip
 import json
 import os
 from pathlib import Path
@@ -76,11 +77,44 @@ with tempfile.TemporaryDirectory(prefix='shuyang-proxy-') as temp:
                     time.sleep(.2)
             else:
                 raise RuntimeError('Local HTTPS service did not become ready')
-            result = subprocess.run([os.sys.executable, str(root / 'scripts/check-deployment.py'), origin, '--mobile'],
-                env={**os.environ, 'SSL_CERT_FILE': str(work / 'cert.pem')}, capture_output=True, text=True, encoding='utf-8', **flags)
+            def deployment_check():
+                return subprocess.run([os.sys.executable, str(root / 'scripts/check-deployment.py'), origin, '--mobile'],
+                    env={**os.environ, 'SSL_CERT_FILE': str(work / 'cert.pem')}, capture_output=True, text=True, encoding='utf-8', **flags)
+
+            result = deployment_check()
             (output / 'checks.log').write_text(result.stdout + result.stderr, encoding='utf-8')
             print(result.stdout, end='')
             assert result.returncode == 0, result.stderr
+            # Mutate only this disposable site's manifest to reproduce mixed/demo deployments.
+            metadata_path = work / 'site/mobile/release.json'
+            metadata_original = metadata_path.read_bytes()
+            regressions = []
+            try:
+                for label, change in [('old H5 version', {'version': '0.0.0'}), ('demo H5 build', {'demo': True})]:
+                    metadata = json.loads(metadata_original)
+                    metadata.update(change)
+                    metadata_path.write_text(json.dumps(metadata), encoding='utf-8')
+                    changed_result = deployment_check()
+                    rejected = changed_result.returncode != 0 and 'FAIL /mobile/release.json expected production h5 release' in changed_result.stdout and 'Completed: 1 failure(s).' in changed_result.stdout
+                    regressions.append((label, rejected))
+                    print(('PASS:' if rejected else 'FAIL:'), 'deployment checker rejects', label)
+            finally:
+                metadata_path.write_bytes(metadata_original)
+            # Verify actual wire compression and decoded bytes, not merely config text.
+            compression = []
+            for suffix in ['js', 'css']:
+                asset = max((work / 'site/assets').glob('*.' + suffix), key=lambda path: path.stat().st_size)
+                with urlopen(Request(origin + '/assets/' + asset.name, headers={'Accept-Encoding': 'gzip'}), context=context, timeout=10) as response:
+                    payload = response.read()
+                    compressed = response.headers.get('Content-Encoding') == 'gzip'
+                    regressions.append((suffix + ' compression', compressed))
+                    if compressed:
+                        assert gzip.decompress(payload) == asset.read_bytes()
+                        assert len(payload) < asset.stat().st_size
+                        assert 'Accept-Encoding' in response.headers.get('Vary', '')
+                    compression.append({'type': suffix, 'original': asset.stat().st_size, 'transferred': len(payload)})
+                    print(('PASS:' if compressed else 'FAIL:'), suffix, 'wire compression:', len(payload), '/', asset.stat().st_size)
+            assert all(passed for _, passed in regressions), regressions
             for route, expected in [('/api/data-files/preview', 401), ('/api/auth/login', 413)]:
                 try:
                     response = urlopen(Request(origin + route, data=json.dumps({'kind': 'members', 'base64': 'A' * 100000}).encode(), headers={'Content-Type': 'application/json'}), context=context, timeout=10)
@@ -94,7 +128,7 @@ with tempfile.TemporaryDirectory(prefix='shuyang-proxy-') as temp:
                 (output / 'browser.log').write_text(browser.stdout + browser.stderr, encoding='utf-8')
                 print(browser.stdout, end='')
                 assert browser.returncode == 0, browser.stderr
-            (output / 'result.json').write_text(json.dumps({'version': version, 'https': True, 'checks': 10, 'passed': True}), encoding='utf-8')
+            (output / 'result.json').write_text(json.dumps({'version': version, 'https': True, 'checks': 16, 'passed': True, 'compression': compression}), encoding='utf-8')
     finally:
         if proxy:
             subprocess.run([*command, '-s', 'quit'], capture_output=True, **flags)

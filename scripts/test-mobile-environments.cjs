@@ -8,12 +8,12 @@ const tests = [], test = (name, run) => tests.push({ name, run });
 const deferred = () => { let resolve, reject;const promise = new Promise((a,b) => { resolve=a;reject=b; });return { promise,resolve,reject }; };
 const flush = async () => { for (let i=0;i<8;i++) await Promise.resolve();await vue.nextTick(); };
 function platform(target, configured = true) {
-  const requests=[], uploads=[], downloads=[], events=[];let token='session-a';
+  const requests=[], uploads=[], downloads=[], choices=[], events=[];let token='session-a';
   const uni={
     getStorageSync:()=>token, setStorageSync:(_,value)=>token=value, removeStorageSync:()=>token='',
     $emit:name=>events.push(name), request:options=>requests.push(options),
     uploadFile:options=>{uploads.push(options);return {onProgressUpdate(){}};},
-    downloadFile:options=>downloads.push(options)
+    downloadFile:options=>downloads.push(options), chooseFile:options=>choices.push(options), chooseMessageFile:options=>choices.push(options)
   };
   let enabled=true;
   let source=fs.readFileSync(path.join(root,'mobile/src/platform.ts'),'utf8').split('\n').filter(line=>{
@@ -25,9 +25,22 @@ function platform(target, configured = true) {
   source=source.replace(/import\.meta\.env/g, JSON.stringify({VITE_SHUYANG_API_URL:configured && target==='MP-WEIXIN'?'https://api.example.test':''}));
   const exports={};
   vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,{exports,uni,console});
-  return {api:exports,requests,uploads,downloads,events,get token(){return token;},set token(value){token=value;}};
+  return {api:exports,requests,uploads,downloads,choices,events,get token(){return token;},set token(value){token=value;}};
 }
 for(const target of ['H5','MP-WEIXIN']) {
+  test(`${target}: chat file selection preserves the original extension for upload`,async()=>{
+    const p=platform(target), task=p.api.chooseFile();
+    p.choices[0].success({tempFiles:[{path:'wxfile://tmp/opaque-file-id',name:'活动安排.pdf',size:1234}],tempFilePaths:['wxfile://tmp/opaque-file-id']});
+    const selected=await task;
+    assert.equal(selected.path,'wxfile://tmp/opaque-file-id');assert.equal(selected.name,'活动安排.pdf');assert.equal(selected.size,1234);
+    const upload=p.api.uploadMedia(selected.path,'chat','room',selected.name);
+    assert.equal(p.uploads[0].formData.originalName,'活动安排.pdf');
+    p.uploads[0].success({statusCode:200,data:JSON.stringify({code:0,data:{id:'pdf',name:selected.name}})});await upload;
+  });
+  test(`${target}: cancelling file selection is a normal no-op`,async()=>{
+    const p=platform(target), task=p.api.chooseFile();p.choices[0].fail({errMsg:'chooseFile:fail cancel'});
+    assert.equal(await task,null);assert.equal(p.uploads.length,0);
+  });
   for(const [label,data] of [['null',null],['HTML','<html>gateway unavailable</html>'],['empty','']]) {
     test(`${target}: ${label} response rejects without hanging`,async()=>{
       const p=platform(target), task=p.api.api('/products').then(()=>({ok:true}),e=>({error:e.message}));
@@ -89,6 +102,27 @@ function logic() {
   return {load,document,mount:()=>mounted.forEach(fn=>fn()),unmount:()=>unmounted.forEach(fn=>fn()),tick:async()=>{for(const fn of intervals.values())await fn();}};
 }
 const member=()=>({id:'a',status:'approved',role:'member'});
+
+test('chat resumes after a long absence without stranding a gap in history',async()=>{
+  const h=logic();let latest=false;
+  const page=(start,end)=>Array.from({length:end-start+1},(_,i)=>({id:'m'+(start+i),sequence:start+i}));
+  const chat=h.load('shared/useChat.ts').useChat(member,async(p,m)=>{
+    if(m==='POST')return {};
+    if(p.includes('/room'))return {id:'room',status:'active',messages:p.includes('?before=')?page(31,80):latest?page(81,130):page(1,30),hasMore:latest,lastRead:130};
+    return [];
+  });
+  await chat.select({id:'room'});assert.equal(chat.hasMore.value,false);
+  latest=true;await chat.detail('room');assert.equal(chat.messages.value[0].sequence,81);assert.equal(chat.hasMore.value,true);
+  await chat.detail('room',true);
+  assert.equal(chat.messages.value[0].sequence,31);assert.equal(chat.messages.value.length,100);
+  assert.ok(chat.messages.value.every((row,i)=>!i||row.sequence===chat.messages.value[i-1].sequence+1));
+});
+test('chat keeps contiguous previously loaded messages on ordinary refresh',async()=>{
+  const h=logic();let latest=false;
+  const chat=h.load('shared/useChat.ts').useChat(member,async(p,m)=>m==='POST'?{}:p.endsWith('/room')?{id:'room',status:'active',messages:Array.from({length:50},(_,i)=>({id:'m'+(i+(latest?21:1)),sequence:i+(latest?21:1)})),lastRead:70,hasMore:latest}:[]);
+  await chat.select({id:'room'});latest=true;await chat.detail('room');
+  assert.equal(chat.messages.value.length,70);assert.equal(chat.messages.value[0].sequence,1);assert.equal(chat.hasMore.value,false);
+});
 test('mobile background suspends unread polling and foreground refreshes',async()=>{
   const h=logic(),foreground=vue.ref(true);let calls=0;
   const state=h.load('shared/useChat.ts').useChatUnread(member,async()=>({count:++calls}),()=>foreground.value);

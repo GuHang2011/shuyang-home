@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { onUnmounted, ref, watch } from 'vue';
 import { api, baseUrl, downloadMedia } from '../platform';
 import PhotoFieldMobile from './PhotoFieldMobile.vue';
 import { type Row } from '../../../shared/domain';
@@ -31,7 +31,27 @@ function external() {
   uni.setClipboardData({ data: source.value.url, success: () => uni.showToast({ title: '链接已复制，可在浏览器查看', icon: 'none' }) });
   // #endif
 }
-async function preview(row: Row) { try { const path = await downloadMedia(row.mediaId);uni.previewImage({ urls: [path], current: path }); } catch(e) { error.value = (e as Error).message; } }
+let previewGeneration = 0, previewPath = '';
+function releasePreview(path: string) {
+  // #ifdef H5
+  if (path.startsWith('blob:')) URL.revokeObjectURL(path);
+  // #endif
+}
+function closePreview() {
+  ++previewGeneration;
+  if (previewPath) { uni.closePreviewImage({});releasePreview(previewPath);previewPath = ''; }
+}
+watch([() => props.user?.id, () => props.user?.status, () => props.user?.role, () => props.user?.enabled, () => selected.value?.id], closePreview, { flush: 'sync' });
+onUnmounted(closePreview);
+async function preview(row: Row) {
+  const version = ++previewGeneration;
+  try {
+    const path = await downloadMedia(row.mediaId);
+    if (version !== previewGeneration) { releasePreview(path);return; }
+    releasePreview(previewPath);previewPath = path;
+    uni.previewImage({ urls: [path], current: path });
+  } catch(e) { if (version === previewGeneration) error.value = (e as Error).message; }
+}
 </script>
 <template><view class="gallery-mobile">
   <view class="title">活动相册</view><view class="intro">活动照片集中查看，也可以去论坛分享自己的照片。</view>

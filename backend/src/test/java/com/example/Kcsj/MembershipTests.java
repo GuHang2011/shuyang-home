@@ -426,6 +426,49 @@ class MembershipTests {
         call("POST",path,at,map("action","revoke"),200);assertFalse(json.writeValueAsString(list("/my/contact-exchanges",at)).contains("PRIVATE-RECIPIENT"));assertFalse(json.writeValueAsString(list("/my/contact-exchanges",bt)).contains("PRIVATE-REQUESTER"));
         assertFalse(json.writeValueAsString(list("/admin/audit",admin)).contains("PRIVATE-"));
     }
+    @Test void contactHistoryHidesPeerDetailsAfterEitherSideBlocks() throws Exception {
+        Map<String,Object> a=account(true),b=account(true);String at=s(a,"token"),bt=s(b,"token");
+        Map<String,Object> row=contact(at,b);String path="/contact-exchanges/"+s(row,"id")+"/action";
+        call("POST",path,bt,map("action","accept","contact","PRIVATE-RECIPIENT"),200);
+        for(Map<String,Object> blocker:Arrays.asList(a,b)) {
+            Map<String,Object> target=blocker==a?b:a;
+            call("POST","/members/"+s(target,"id")+"/block",s(blocker,"token"),map("active",true),200);
+            Map<String,Object> requesterView=list("/my/contact-exchanges",at).get(0),recipientView=list("/my/contact-exchanges",bt).get(0);
+            assertFalse(requesterView.containsKey("recipientContact"));assertEquals("PRIVATE-REQUESTER",s(requesterView,"requesterContact"));
+            assertFalse(recipientView.containsKey("requesterContact"));assertEquals("PRIVATE-RECIPIENT",s(recipientView,"recipientContact"));
+            call("POST","/members/"+s(target,"id")+"/block",s(blocker,"token"),map("active",false),200);
+            assertEquals("PRIVATE-RECIPIENT",s(list("/my/contact-exchanges",at).get(0),"recipientContact"));
+        }
+        call("POST",path,at,map("action","revoke"),200);
+        assertFalse(list("/my/contact-exchanges",bt).get(0).containsKey("requesterContact"));
+    }
+    @Test void contactHistoryHidesDetailsWhenEitherAccountIsNoLongerEligible() throws Exception {
+        Map<String,Object> a=account(true),b=account(true);String at=s(a,"token"),bt=s(b,"token");
+        Map<String,Object> row=contact(at,b);call("POST","/contact-exchanges/"+s(row,"id")+"/action",bt,map("action","accept","contact","PRIVATE-RECIPIENT"),200);
+        Map<String,Object> user=store.get("user",s(b,"id"));user.put("enabled",false);store.save("user",user);
+        assertFalse(list("/my/contact-exchanges",at).get(0).containsKey("recipientContact"));
+        user.put("enabled",true);user.put("status","pending");store.save("user",user);
+        assertFalse(list("/my/contact-exchanges",at).get(0).containsKey("recipientContact"));
+        assertFalse(list("/my/contact-exchanges",bt).get(0).containsKey("requesterContact"));
+        user.put("status","approved");store.save("user",user);
+        assertEquals("PRIVATE-RECIPIENT",s(list("/my/contact-exchanges",at).get(0),"recipientContact"));
+    }
+    @Test void pendingContactAcceptanceRechecksBlocksAndCurrentMembership() throws Exception {
+        Map<String,Object> a=account(true),b=account(true);String at=s(a,"token"),bt=s(b,"token");
+        Map<String,Object> row=contact(at,b);String path="/contact-exchanges/"+s(row,"id")+"/action";
+        for(Map<String,Object> blocker:Arrays.asList(a,b)) {
+            Map<String,Object> target=blocker==a?b:a;
+            call("POST","/members/"+s(target,"id")+"/block",s(blocker,"token"),map("active",true),200);
+            call("POST",path,bt,map("action","accept","contact","PRIVATE-RECIPIENT"),403);
+            assertEquals("pending",s(store.get("contact_exchange",s(row,"id")),"status"));
+            assertFalse(store.get("contact_exchange",s(row,"id")).containsKey("recipientContact"));
+            call("POST","/members/"+s(target,"id")+"/block",s(blocker,"token"),map("active",false),200);
+        }
+        Map<String,Object> user=store.get("user",s(a,"id"));user.put("status","pending");store.save("user",user);
+        call("POST",path,bt,map("action","accept","contact","PRIVATE-RECIPIENT"),409);
+        user.put("status","approved");store.save("user",user);
+        call("POST",path,bt,map("action","accept","contact","PRIVATE-RECIPIENT"),200);
+    }
     @Test void contactRejectCancelSelfAndUnapprovedRecipientsAreEnforced() throws Exception {
         Map<String,Object> a=account(true),b=account(true),pending=account(false);String at=s(a,"token"),bt=s(b,"token");
         call("POST","/contact-exchanges",at,map("recipientId",s(a,"id"),"message","不能申请自己联系方式","contact","test"),400);call("POST","/contact-exchanges",at,map("recipientId",s(pending,"id"),"message","不能联系未审核会员","contact","test"),409);

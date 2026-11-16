@@ -46,12 +46,19 @@ export async function choosePhotos(count: number, camera = false, request?: impo
   }));
 }
 export function choosePhoto(camera = false): Promise<string> { return new Promise((resolve, reject) => uni.chooseImage({ count: 1, sizeType: ['compressed'], sourceType: camera ? ['camera'] : ['album'], success: result => resolve(result.tempFilePaths[0]), fail: () => reject(new Error('未选择照片，请检查相机或相册权限')) })); }
-export function chooseFile(): Promise<string> { return new Promise((resolve, reject) => {
+export type SelectedFile = { path: string; name: string; size: number };
+export function chooseFile(): Promise<SelectedFile | null> { return new Promise((resolve, reject) => {
+  const success = (result: any) => {
+    const file = result.tempFiles?.[0];
+    if (!file) { resolve(null);return; }
+    resolve({ path: file.path, name: file.name || '', size: file.size });
+  };
+  const fail = (error: { errMsg?: string }) => error.errMsg?.includes('cancel') ? resolve(null) : reject(new Error('无法选择文件，请检查权限后重试'));
   // #ifdef MP-WEIXIN
-  uni.chooseMessageFile({ count: 1, type: 'file', success: result => resolve(result.tempFiles[0].path), fail: () => reject(new Error('未选择文件')) });
+  uni.chooseMessageFile({ count: 1, type: 'file', success, fail });
   // #endif
   // #ifdef H5
-  uni.chooseFile({ count: 1, type: 'all', success: result => resolve(result.tempFilePaths[0]), fail: () => reject(new Error('未选择文件')) });
+  uni.chooseFile({ count: 1, type: 'all', success, fail });
   // #endif
 }); }
 export function setToken(token: string) { token ? uni.setStorageSync(tokenKey, token) : uni.removeStorageSync(tokenKey); }

@@ -149,3 +149,5 @@ python scripts/summarize-business-files.py --run-prefix retest-20261102
 `test-production-proxy.py` 额外使用本机 Nginx 和 OpenSSL，设置 `SHUYANG_NGINX_PATH`、`SHUYANG_OPENSSL_PATH` 后运行。它从部署模板启动隔离 HTTPS 代理，校验 Web／H5 子路径、静态资源、权限和请求大小。设置 `SHUYANG_CHROMIUM_PATH` 时，还调用 `test-production-browser.cjs` 检查真实生产网页的390px布局、图片和演示隔离。所有进程在结束时退出，结果放在被忽略的 `output/production-*`。
 
 `create-production-config.py` 仅用于新安装，独占创建私有配置，不覆盖已有密码／密钥。`check-deployment.py` 可在部署后执行只读 HTTPS 检查。完整操作见[上线准备](../docs/上线准备-v2.0.0.md)。
+
+v2.0.1 起 `check-deployment.py` 默认读取包目录或源码根目录的 VERSION，检查 Web／H5 的 release.json；单独复制工具时须传 `--expected-version`。`test-production-proxy.py` 额外把临时 H5 版本改旧、改为 demo，确认检查只因版本清单失败，再恢复；实际验证 gzip 传输和解压字节。当前16项代理检查，另外按配置运行两个手机页面。前端完整回归为317项，新增聊天断层分页、微信文件名和相册迟到结果测试；见[问题修复记录](../docs/上线复查与问题修复-v2.0.1.md)。

@@ -24,7 +24,7 @@ async function attach(kind: string) {
   const valid = uploadScope.capture(), request = {};cameraRequest = request;let preview = '';uploading.value = true;error.value = '';
   try {
     let path = '', name = '';
-    if (kind === 'file') path = await chooseFile();
+    if (kind === 'file') { const file = await chooseFile();if (!file) return;path = file.path;name = file.name;preview = file.path; }
     else { const photos = await choosePhotos(1, kind === 'camera', request);if (!photos.length) return;path = photos[0].source;name = photos[0].name;preview = photos[0].preview; }
     if (!valid()) return;
     const row = await uploadMedia(path, 'chat', room, name);

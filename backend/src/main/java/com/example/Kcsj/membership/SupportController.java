@@ -80,9 +80,13 @@ public class SupportController {
 
     private Map<String,Object> contactView(Map<String,Object> row,Map<String,Object> actor) {
         Map<String,Object> result=new LinkedHashMap<>(row);
-        if(!s(row,"status").equals("accepted")){if(!s(row,"requesterId").equals(s(actor,"id")))result.remove("requesterContact");if(!s(row,"recipientId").equals(s(actor,"id")))result.remove("recipientContact");}
+        boolean requester=s(row,"requesterId").equals(s(actor,"id"));
+        Map<String,Object> peer=store.get("user",s(row,requester?"recipientId":"requesterId"));
+        boolean shared=s(row,"status").equals("accepted")&&contactMember(actor)&&contactMember(peer)&&!policy.blocked(s(actor,"id"),s(peer,"id"));
+        if(!shared)result.remove(requester?"recipientContact":"requesterContact");
         return result;
     }
+    private boolean contactMember(Map<String,Object> user){return b(user,"enabled")&&s(user,"status").equals("approved");}
     @GetMapping("/my/contact-exchanges") public Map<String,Object> contacts(HttpServletRequest req) {
         Map<String,Object> actor=auth.require(req);return ApiResponse.ok(rows("contact_exchange").stream().filter(x->s(x,"requesterId").equals(s(actor,"id"))||s(x,"recipientId").equals(s(actor,"id"))).map(x->contactView(x,actor)).collect(Collectors.toList()));
     }
@@ -103,7 +107,15 @@ public class SupportController {
         else {
             if(!state.equals("pending"))throw new ApiException(409,"该联系申请已处理");
             if(action.equals("cancel")){if(!requester)throw new ApiException(403,"仅申请人可取消");row.put("status","cancelled");}
-            else {if(!recipient)throw new ApiException(403,"仅接收人可同意或拒绝");if(action.equals("accept")){Map<String,Object> source=store.get("user",s(row,"requesterId"));if(!b(source,"enabled"))throw new ApiException(409,"申请人已停用");row.put("recipientContact",text(input,"contact",2,100));row.put("status","accepted");}else row.put("status","rejected");}
+            else {
+                if(!recipient)throw new ApiException(403,"仅接收人可同意或拒绝");
+                if(action.equals("accept")){
+                    Map<String,Object> source=store.get("user",s(row,"requesterId"));
+                    if(!contactMember(source))throw new ApiException(409,"申请人账号状态暂不允许交换联系方式");
+                    if(policy.blocked(s(actor,"id"),s(source,"id")))throw new ApiException(403,"拉黑后不能同意交换联系方式");
+                    row.put("recipientContact",text(input,"contact",2,100));row.put("status","accepted");
+                }else row.put("status","rejected");
+            }
         }
         row.put("updatedAt",now());store.save("contact_exchange",row);auth.audit(actor,"contact."+action,id);return ApiResponse.ok(contactView(row,actor));
     }

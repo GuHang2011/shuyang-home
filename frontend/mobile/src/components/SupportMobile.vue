@@ -54,7 +54,7 @@ function chooseMember(event: any) { const person = members.value[Number(event.de
 function consent(event: any) { form.value.consent = Boolean(event.detail.value); }
 function targetContact() { if (props.mode === 'contacts' && props.target && member()) open('contact', { recipientId: props.target.id, recipientName: props.target.name, contact: '', message: '' }); }
 function accept(row: Row) { selected.value = row;open('acceptContact', { contact: '' }); }
-function copy(value: string) { uni.setClipboardData({ data: value }); }
+function copy(value: string | undefined) { if (typeof value === 'string' && value.trim()) uni.setClipboardData({ data: value }); }
 watch([() => props.mode, () => props.user?.id, () => props.user?.status, () => props.user?.role], () => { scope.invalidate();++detailGeneration;busy.value = false;selected.value = {};form.value = {};error.value = '';screen.value = '';++generation;rows.value = [];mine.value = [];pledges.value = [];members.value = [];details.value = [];selected.value = {};form.value = {};screen.value = '';tab.value = 'public';load(); }, { flush: 'sync' });
 watch(() => props.target, targetContact);
 onMounted(() => { load();targetContact(); });
@@ -93,7 +93,7 @@ onMounted(() => { load();targetContact(); });
         <view v-if="!user" class="empty">登录并通过入会审核后，可申请交换联系方式。<button class="outline" @click="emit('join')">登录 / 申请加入</button></view>
         <view v-else-if="!rows.length" class="empty">还没有联系申请，可到老乡名录中选择希望联系的人。</view>
         <view v-for="row in rows" :key="row.id" class="panel"><text class="tag">{{ contactStates[row.status] }}</text><text class="card-title">{{ row.requesterName }} → {{ row.recipientName }}</text><view class="prose">{{ row.message }}</view>
-          <view v-if="row.status === 'accepted'" class="contact-info"><view>{{ row.requesterName }}：{{ row.requesterContact }}</view><view>{{ row.recipientName }}：{{ row.recipientContact }}</view><button class="text-button" @click="copy(row.requesterId === user?.id ? row.recipientContact : row.requesterContact)">复制对方联系方式</button></view>
+          <view v-if="row.status === 'accepted'" class="contact-info"><view v-if="row.requesterContact">{{ row.requesterName }}：{{ row.requesterContact }}</view><view v-if="row.recipientContact">{{ row.recipientName }}：{{ row.recipientContact }}</view><button v-if="row.requesterContact && row.recipientContact" class="text-button" @click="copy(row.requesterId === user?.id ? row.recipientContact : row.requesterContact)">复制对方联系方式</button><view v-else class="meta">对方联系方式暂不可用。</view></view>
           <view v-else class="meta">{{ row.status === 'pending' ? '等待接收人同意，联系方式尚未互相展示。' : '本次交换未展示对方联系方式。' }}</view>
           <view v-if="row.status === 'pending'" class="button-row"><template v-if="row.recipientId === user?.id"><button class="primary small" @click="accept(row)">同意并分享</button><button class="text-button" @click="confirm('/contact-exchanges/' + row.id + '/action', '拒绝后，双方不会看到对方的联系方式。', { action: 'reject' })">暂不接受</button></template><button v-else class="text-button" @click="confirm('/contact-exchanges/' + row.id + '/action', '确认取消这次联系申请？', { action: 'cancel' })">取消申请</button></view>
           <button v-if="row.status === 'accepted'" class="text-button" @click="confirm('/contact-exchanges/' + row.id + '/action', '撤销后停止展示彼此联系方式；无法收回对方已保存的信息。', { action: 'revoke' })">撤销展示</button>

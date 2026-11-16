@@ -24,7 +24,12 @@ export function useChat(getUser: () => Row | null, api: Api, pageVisible: () => 
       if (version !== generation || active.value?.id !== id) return;
       if (older) { messages.value = [...data.messages, ...messages.value];hasMore.value = data.hasMore; }
       else {
-        const previous = messages.value.filter(m => m.sequence < (data.messages[0]?.sequence ?? Infinity));
+        // A refresh returns only the latest page. After a long absence, retain
+        // older rows only when the pages overlap or are adjacent; otherwise
+        // start at the latest page so "older messages" can fill the gap.
+        const first = data.messages[0]?.sequence, lastLoaded = messages.value[messages.value.length - 1]?.sequence;
+        const gap = first !== undefined && lastLoaded !== undefined && first > lastLoaded + 1;
+        const previous = gap ? [] : messages.value.filter(m => m.sequence < (first ?? Infinity));
         messages.value = [...previous, ...data.messages];hasMore.value = previous.length ? hasMore.value : data.hasMore;
         active.value = data;
         const last = data.messages[data.messages.length - 1]?.sequence || 0;

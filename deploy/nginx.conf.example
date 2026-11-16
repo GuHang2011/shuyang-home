@@ -20,6 +20,12 @@ server {
     client_max_body_size 64k;
     server_tokens off;
     ssl_protocols TLSv1.2 TLSv1.3;
+    # Compress public static text; authenticated JSON responses stay uncompressed.
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_comp_level 5;
+    gzip_types text/css application/javascript text/javascript image/svg+xml;
     limit_req_status 429;
     add_header Strict-Transport-Security "max-age=31536000" always;
     add_header X-Content-Type-Options nosniff always;

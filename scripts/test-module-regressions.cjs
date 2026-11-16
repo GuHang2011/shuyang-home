@@ -4,8 +4,8 @@ const ts=require(path.join(root,'node_modules/typescript')),sfc=require(path.joi
 const tests=[],test=(name,fn)=>tests.push({name,fn});
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};};
 const flush=async()=>{for(let i=0;i<12;i++)await Promise.resolve();await vue.nextTick();};
-function harness(file,api,mode) {
-  const unmount=[],mounted=[],notifications=[],cache=new Map(),props=vue.reactive({mode,user:{id:'a',status:'approved',role:'member'},manage:false});let token='initial';
+function harness(file,api,mode,services={}) {
+  const unmount=[],mounted=[],notifications=[],released=[],cache=new Map(),props=vue.reactive({mode,user:{id:'a',status:'approved',role:'member'},manage:false});let token='initial';
   const vueMock={...vue,onMounted:fn=>mounted.push(fn),onUnmounted:fn=>unmount.push(fn)};
   function load(file) {
     file=path.resolve(file);if(cache.has(file))return cache.get(file);
@@ -13,17 +13,45 @@ function harness(file,api,mode) {
     if(file.endsWith('.vue'))source=sfc.compileScript(sfc.parse(source).descriptor,{id:'module-regression'}).content;
     const exports={};cache.set(file,exports);
     vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,{
-      exports,console,Date,Math,Set,setTimeout,clearTimeout,setInterval,clearInterval,
+      exports,console,Date,Math,Set,setTimeout,clearTimeout,setInterval,clearInterval,URL:{revokeObjectURL:path=>released.push(path)},
       window:{scrollTo(){},addEventListener(){},removeEventListener(){}},document:{activeElement:null},location:{hash:'#home'},history:{pushState(){},replaceState(){}},
-      uni:{showToast:value=>notifications.push(value),pageScrollTo(){},showModal:value=>notifications.push(value),setClipboardData(){},$on(){},$off(){}},
-      require:request=>request==='vue'?vueMock:request==='@dcloudio/uni-app'?{onHide(){},onShow(){},onLoad(){},onShareAppMessage(){},onPullDownRefresh(){}}:request.endsWith('/features')?{forumEnabled:true}:request.endsWith('/useChat')?{useChatUnread:()=>({unread:vue.ref(0)})}:request.endsWith('/api')||request.endsWith('/platform')?{api,getToken:()=>token,setToken:value=>{token=value;}}:request.endsWith('.vue')?{}:load(path.resolve(path.dirname(file),request+'.ts'))
+      uni:{showToast:value=>notifications.push(value),pageScrollTo(){},showModal:value=>notifications.push(value),setClipboardData:value=>notifications.push({clipboard:value}),$on(){},$off(){},previewImage:value=>notifications.push({preview:value}),closePreviewImage:()=>notifications.push({closePreview:true})},
+      require:request=>request==='vue'?vueMock:request==='@dcloudio/uni-app'?{onHide(){},onShow(){},onLoad(){},onShareAppMessage(){},onPullDownRefresh(){}}:request.endsWith('/features')?{forumEnabled:true}:request.endsWith('/useChat')?{useChatUnread:()=>({unread:vue.ref(0)})}:request.endsWith('/api')||request.endsWith('/platform')?{api,getToken:()=>token,setToken:value=>{token=value;},...services}:request.endsWith('.vue')?{}:load(path.resolve(path.dirname(file),request+'.ts'))
     });return exports;
   }
   const effect=vue.effectScope();let state;
   effect.run(()=>{state=load(path.join(root,file)).default.setup(props,{expose(){},emit:(...args)=>notifications.push(args)});});
-  return {state,props,notifications,token:()=>token,setToken:value=>{token=value;},mount:()=>Promise.all(mounted.map(fn=>fn())),unmount:()=>{unmount.forEach(fn=>fn());effect.stop();}};
+  return {state,props,notifications,released,token:()=>token,setToken:value=>{token=value;},mount:()=>Promise.all(mounted.map(fn=>fn())),unmount:()=>{unmount.forEach(fn=>fn());effect.stop();}};
 }
+for(const reason of ['logout','album change','unmount']) for(const failed of [false,true]) {
+  test(`mobile gallery: late photo ${failed?'failure':'success'} is ignored after ${reason}`,async()=>{
+    const pending=deferred(),h=harness('mobile/src/components/GalleryMobile.vue',async()=>({albums:[],source:{}}),undefined,{downloadMedia:()=>pending.promise});
+    try {
+      h.state.selected.value={id:'private-album'};
+      const task=h.state.preview({mediaId:'private-photo'});
+      if(reason==='logout')h.props.user=null;else if(reason==='album change')h.state.selected.value={id:'next-album'};else h.unmount();
+      failed?pending.reject(Error('old private error')):pending.resolve('blob:private-photo');await task;
+      assert.equal(h.notifications.filter(n=>n.preview).length,0);assert.equal(h.state.error.value,'');
+      if(!failed)assert.ok(h.released.includes('blob:private-photo'));
+    }finally{if(reason!=='unmount')h.unmount();}
+  });
+}
+test('mobile gallery: latest selection wins and logout closes the open photo',async()=>{
+  const a=deferred(),b=deferred(),h=harness('mobile/src/components/GalleryMobile.vue',async()=>({albums:[],source:{}}),undefined,{downloadMedia:id=>id==='a'?a.promise:b.promise});
+  try {
+    h.state.selected.value={id:'album'};
+    const first=h.state.preview({mediaId:'a'}),second=h.state.preview({mediaId:'b'});
+    b.resolve('blob:b');await second;a.resolve('blob:a');await first;
+    assert.equal(h.notifications.filter(n=>n.preview).length,1);assert.equal(h.notifications[0].preview.current,'blob:b');
+    h.props.user=null;assert.ok(h.notifications.some(n=>n.closePreview));
+    assert.ok(h.released.includes('blob:a'));assert.ok(h.released.includes('blob:b'));
+  }finally{h.unmount();}
+});
 const modules=[['Community','resources'],['Support','crowdfunding'],['Engagement','ads']];
+test('mobile contact exchange: unavailable peer contact never writes an empty clipboard',async()=>{
+  const h=harness('mobile/src/components/SupportMobile.vue',async()=>[],'contacts');
+  try{h.state.copy(undefined);h.state.copy('  ');assert.equal(h.notifications.length,0);h.state.copy('shared-contact');assert.equal(h.notifications[0].clipboard.data,'shared-contact');}finally{h.unmount();}
+});
 for(const [module,mode] of modules)for(const surface of ['web','mobile']) {
   const file=surface==='web'?`src/components/${module}Hub.vue`:`mobile/src/components/${module}Mobile.vue`;
   test(`${surface} ${module}: successful reload clears stale error`,async()=>{
