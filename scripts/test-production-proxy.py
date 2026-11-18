@@ -59,7 +59,7 @@ with tempfile.TemporaryDirectory(prefix='shuyang-proxy-') as temp:
     assert syntax.returncode == 0, syntax.stderr.decode(errors='replace')
     env = {**os.environ, 'SHUYANG_PORT': str(backend_port), 'SHUYANG_DB_URL': 'jdbc:h2:file:' + (work / 'data').as_posix(),
         'SHUYANG_DB_PASSWORD': secrets.token_hex(24), 'SHUYANG_DATA_KEY': base64.b64encode(secrets.token_bytes(32)).decode(),
-        'SHUYANG_ADMIN_PASSWORD': 'Initial9' + secrets.token_hex(16), 'SHUYANG_ALLOWED_ORIGINS': 'https://launch.test',
+        'SHUYANG_ADMIN_PASSWORD': 'Initial9' + secrets.token_hex(16), 'SHUYANG_ALLOWED_ORIGINS': 'https://127.0.0.1:' + str(https_port),
         'SHUYANG_WEATHER_LOCAL_NETWORK': 'false', 'SHUYANG_AI_ENABLED': 'false'}
     backend = proxy = None
     context = ssl.create_default_context(cafile=str(work / 'cert.pem'))
@@ -124,7 +124,26 @@ with tempfile.TemporaryDirectory(prefix='shuyang-proxy-') as temp:
                     assert response.status == expected, (route, response.status, expected)
                 print('PASS:', route, 'request-size policy')
             if os.environ.get('SHUYANG_CHROMIUM_PATH'):
-                browser = subprocess.run(['node', str(root / 'scripts/test-production-browser.cjs'), origin], capture_output=True, text=True, encoding='utf-8', **flags)
+                def fixture_request(route, body, token=None):
+                    headers = {'Content-Type': 'application/json'}
+                    if token:
+                        headers['Authorization'] = 'Bearer ' + token
+                    try:
+                        response = urlopen(Request(origin + '/api' + route, data=json.dumps(body).encode(), headers=headers), context=context, timeout=10)
+                    except HTTPError as error:
+                        # Do not include request bodies, headers or authentication responses in logs.
+                        raise AssertionError(f'Browser fixture failed: {route} HTTP {error.code}') from None
+                    with response:
+                        assert response.status == 200, (route, response.status)
+                        return json.load(response)['data']
+
+                admin = fixture_request('/auth/login', {'username': 'admin', 'password': env['SHUYANG_ADMIN_PASSWORD']})['token']
+                admin = fixture_request('/auth/password', {'oldPassword': env['SHUYANG_ADMIN_PASSWORD'], 'newPassword': 'Changed9' + secrets.token_hex(16)}, admin)['token']
+                profile = {'phone': '13800005552', 'password': 'Fixture9' + secrets.token_hex(16), 'name': '高铁版主权限验收', 'hometown': '沭阳', 'district': '苏州', 'consent': True, 'volunteer': False, 'directoryVisible': False, 'phoneVisible': False}
+                member = fixture_request('/auth/register', profile)['user']
+                fixture_request('/admin/members/' + member['id'] + '/review', {'status': 'approved', 'note': ''}, admin)
+                browser_env = {**os.environ, 'SHUYANG_TEST_ADMIN_TOKEN': admin, 'SHUYANG_TEST_MEMBER_ID': member['id'], 'SHUYANG_TEST_MEMBER_NAME': profile['name']}
+                browser = subprocess.run(['node', str(root / 'scripts/test-production-browser.cjs'), origin], env=browser_env, capture_output=True, text=True, encoding='utf-8', **flags)
                 (output / 'browser.log').write_text(browser.stdout + browser.stderr, encoding='utf-8')
                 print(browser.stdout, end='')
                 assert browser.returncode == 0, browser.stderr

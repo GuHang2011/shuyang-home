@@ -1,13 +1,25 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import { api, baseUrl } from '../platform';
 import { type Row, formatTime } from '../../../shared/domain';
 import { useShop, productCategories, orderStates, orderSettlementLabel, money } from '../../../shared/useShop';
+import { useRequestScope } from '../../../shared/useRequestScope';
 const props = defineProps<{ user: Row | null }>();const emit = defineEmits<{ (event: 'join'): void }>();
 const { orders, selected, filter, query, tab, error, message, loading, busy, ordering, orderForm, filtered, load, resetFilters, buy, submitOrder, act } = useShop(() => props.user, api);
+const confirmationScope = useRequestScope();
+watch([() => props.user?.id, () => props.user?.role, () => props.user?.status], confirmationScope.invalidate, { flush: 'sync' });
 const total = computed(() => (selected.value?.priceCents || 0) * Number(orderForm.value.quantity || 0) + (orderForm.value.delivery === 'shipping' ? selected.value?.shippingCents || 0 : 0));
 function order(row: Row) { if (props.user?.status !== 'approved') emit('join');else buy(row); }
-function action(row: Row, name: string) { uni.showModal({ title: name === 'cancel' ? '取消订单' : '确认已收货', content: name === 'cancel' ? '取消后释放所占库存，请确认。' : '请确认已实际收到商品。', success: result => { if (result.confirm) act(row, name); } }); }
+function action(row: Row, name: string) {
+  if (busy.value) return;
+  confirmationScope.invalidate();
+  const current = confirmationScope.capture();
+  uni.showModal({ title: name === 'cancel' ? '取消订单' : '确认已收货', content: name === 'cancel' ? '取消后释放所占库存，请确认。' : '请确认已实际收到商品。', success: result => {
+    if (!current()) return;
+    confirmationScope.invalidate();
+    if (result.confirm) act(row, name);
+  } });
+}
 function consent(event: any) { orderForm.value.consent = event.detail.value; }
 function delivery(event: any) { orderForm.value.delivery = Number(event.detail.value) === 0 ? 'shipping' : 'pickup'; }
 </script>

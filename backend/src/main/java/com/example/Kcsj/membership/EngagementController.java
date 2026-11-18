@@ -79,13 +79,13 @@ public class EngagementController {
     }
     @SuppressWarnings("unchecked") @PostMapping("/polls/{id}/vote") public Map<String,Object> vote(@PathVariable String id,@RequestBody Map<String,Object> input,HttpServletRequest req) {
         store.lockWrites();Map<String,Object> actor=member(req),poll=store.get("poll",id);
-        if(ended(poll)||instant(poll,"startsAt").isAfter(Instant.now()))throw new ApiException(409,"投票尚未开始或已经结束");
         if(!(input.get("choices") instanceof List))throw new ApiException(400,"请选择投票选项");
         List<?> raw=(List<?>)input.get("choices");Set<String> choices=new TreeSet<>();for(Object value:raw){if(!(value instanceof String))throw new ApiException(400,"选项格式错误");choices.add((String)value);}
         Set<String> allowed=((List<Map<String,Object>>)poll.get("options")).stream().map(o->s(o,"id")).collect(Collectors.toSet());
         if(choices.size()!=raw.size()||choices.isEmpty()||choices.size()>number(poll,"maxChoices",1,10)||!allowed.containsAll(choices))throw new ApiException(400,"请选择有效选项，且不要超过允许的数量");
         String ballotId=id+":"+s(actor,"id");Optional<Map<String,Object>> existing=store.all("poll_vote").stream().filter(v->s(v,"id").equals(ballotId)).findFirst();
         if(existing.isPresent()){if(!new TreeSet<>((List<String>)existing.get().get("choices")).equals(choices))throw new ApiException(409,"你已提交投票，不能重复修改选择");return ApiResponse.ok(pollView(poll,actor));}
+        if(ended(poll)||instant(poll,"startsAt").isAfter(Instant.now()))throw new ApiException(409,"投票尚未开始或已经结束");
         store.save("poll_vote",map("id",ballotId,"pollId",id,"userId",s(actor,"id"),"choices",new ArrayList<>(choices),"createdAt",now()));
         auth.audit(actor,"poll.vote",id);return ApiResponse.ok(pollView(poll,actor));
     }

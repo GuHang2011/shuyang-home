@@ -22,7 +22,7 @@
 
 `node scripts/test-request-scopes.cjs` 使用已有前端依赖运行5个异步响应场景。
 
-在 `frontend` 运行 `npm run test:regression` 统一执行160个逻辑场景：5个原有业务、12个天气、15个审查回归、31个移动环境、5个照片队列、78个模块／功能设计回归以及14个表情包场景。`npm run test:mobile`、`npm run test:modules` 和 `npm run test:stickers` 可分别运行对应测试，无需启动服务。
+在 `frontend` 运行 `npm run test:regression` 执行完整逻辑回归（v2.0.2 共361项），覆盖业务状态、天气、移动环境、照片队列、模块交互、聊天表情、附件错误和身份隔离等。`npm run test:mobile`、`npm run test:modules` 和 `npm run test:stickers` 可分别运行对应测试，无需启动服务。
 
 ## v1.4.0 聊天表情包回归
 
@@ -150,4 +150,13 @@ python scripts/summarize-business-files.py --run-prefix retest-20261102
 
 `create-production-config.py` 仅用于新安装，独占创建私有配置，不覆盖已有密码／密钥。`check-deployment.py` 可在部署后执行只读 HTTPS 检查。完整操作见[上线准备](../docs/上线准备-v2.0.0.md)。
 
-v2.0.1 起 `check-deployment.py` 默认读取包目录或源码根目录的 VERSION，检查 Web／H5 的 release.json；单独复制工具时须传 `--expected-version`。`test-production-proxy.py` 额外把临时 H5 版本改旧、改为 demo，确认检查只因版本清单失败，再恢复；实际验证 gzip 传输和解压字节。当前16项代理检查，另外按配置运行两个手机页面。前端完整回归为317项，新增聊天断层分页、微信文件名和相册迟到结果测试；见[问题修复记录](../docs/上线复查与问题修复-v2.0.1.md)。
+v2.0.1 起 `check-deployment.py` 默认读取包目录或源码根目录的 VERSION，检查 Web／H5 的 release.json；单独复制工具时须传 `--expected-version`。`test-production-proxy.py` 额外把临时 H5 版本改旧、改为 demo，确认检查只因版本清单失败，再恢复；实际验证 gzip 传输和解压字节。v2.0.1 为16项代理检查，另外按配置运行两个手机页面。该版本前端完整回归为317项，新增聊天断层分页、微信文件名和相册迟到结果测试；见[问题修复记录](../docs/上线复查与问题修复-v2.0.1.md)。
+
+
+## v2.0.2 边界与故障恢复
+
+`node scripts/test-media-api.cjs` 执行10项真实Web附件客户端行为检查，涵盖二进制结果、当前／迟到401、HTML／null错误响应、权限拒绝、断网及超时。`node scripts/test-life-shop-reliability.cjs` 执行14项移动订单确认、北京时间凌晨与跨年、草稿存储故障检查；`node scripts/test-chat-media-lifecycle.cjs` 另有20项聊天媒体检查，验证真实会话轮询不会关闭相机或丢弃上传、身份变化仍取消。三者均已接入 `test:regression`，完整前端回归为361项。
+
+后端新增 `BusinessBoundaryTests` 5项与 `CorsConfigTests` 7项，验证活动改期和换场地后的签到配置失效、截止后同一投票重试、24小时自提边界，以及含空格多域名的真实 OPTIONS 预检。完整 `clean verify` 为214项。
+
+生产页面脚本增加超级管理员通过权限表单任命“淮新高铁”版主的流程，核对接口保存结果及其他板块未获授权，并检查390px表单布局；测试账号和token仅在隔离临时数据库及子进程内存中使用。前端与后端定向测试均先确认旧实现失败，再检查修复通过。详细结果见[本轮复查记录](../docs/上线复查与问题修复-v2.0.2.md)。

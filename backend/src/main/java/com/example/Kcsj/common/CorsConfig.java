@@ -14,7 +14,8 @@ public class CorsConfig {
     @Bean
     public CorsFilter corsFilter() {
         CorsConfiguration config=new CorsConfiguration();
-        config.setAllowedOrigins(Arrays.asList(origins.split(",")));
+        config.setAllowedOrigins(Arrays.stream(origins.split(","))
+            .map(String::trim).filter(origin -> !origin.isEmpty()).toList());
         config.setAllowedMethods(Arrays.asList("GET","POST","PUT","DELETE","PATCH","OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("Authorization","Content-Type","Idempotency-Key","X-Client-Version"));
         config.setExposedHeaders(Arrays.asList("Content-Disposition","Idempotency-Replayed"));

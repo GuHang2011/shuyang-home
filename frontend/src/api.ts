@@ -17,7 +17,28 @@ export async function uploadMedia(file: File, scope: string, roomId = '', progre
     request.send(body);
   });
 }
-export async function mediaBlob(id: string) { const response = await fetch('/api/media/' + encodeURIComponent(id), { headers: getToken() ? { Authorization: 'Bearer ' + getToken() } : {} });if (!response.ok) { const error = await response.json();throw new Error(error.message || '附件暂不可用'); }return response.blob(); }
+export async function mediaBlob(id: string) {
+  const requestToken = getToken(), controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 60000);
+  try {
+    const response = await fetch('/api/media/' + encodeURIComponent(id), {
+      headers: requestToken ? { Authorization: 'Bearer ' + requestToken } : {}, signal: controller.signal
+    });
+    if (response.status === 401 && requestToken && requestToken === getToken()) {
+      setToken(''); window.dispatchEvent(new Event('session-expired'));
+    }
+    if (!response.ok) {
+      const result = await response.json().catch(() => null);
+      const message = typeof result?.message === 'string' ? result.message : '';
+      throw new Error(message || (response.status === 401 ? '登录已过期，请重新登录' : '附件暂不可用，请稍后重试'));
+    }
+    return await response.blob();
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') throw new Error('附件读取超时，请重试');
+    if (error instanceof TypeError) throw new Error('附件读取失败，请检查网络后重试');
+    throw error;
+  } finally { clearTimeout(timeout); }
+}
 export function setToken(token: string) { token ? sessionStorage.setItem(tokenKey, token) : sessionStorage.removeItem(tokenKey); }
 export async function api<T = any>(path: string, method = 'GET', body?: unknown): Promise<T> {
   const controller = new AbortController();

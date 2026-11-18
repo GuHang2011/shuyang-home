@@ -18,7 +18,7 @@ function chooseSticker(item: Sticker) { if (busy.value || uploading.value || att
 watch([() => props.user?.id, () => active.value?.id, () => canSend.value], () => { stickersOpen.value = false; }, { flush: 'sync' });
 const { taking, cameraError, photograph } = useBrowserCamera(() => [props.user?.id, active.value?.id, canSend.value]);
 const uploadScope = useRequestScope();
-watch(() => [props.user?.id, active.value?.id, canSend.value], () => { uploadScope.invalidate();uploading.value = false; }, { flush: 'sync' });
+watch([() => props.user?.id, () => active.value?.id, () => canSend.value], () => { uploadScope.invalidate();uploading.value = false; }, { flush: 'sync' });
 async function uploadFile(file: File) {
   const room = active.value?.id;if (!room || !canSend.value || busy.value || uploading.value || sticker.value) return;
   const valid = uploadScope.capture();uploading.value = true;error.value = '';

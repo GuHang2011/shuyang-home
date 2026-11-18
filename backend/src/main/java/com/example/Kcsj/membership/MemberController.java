@@ -129,9 +129,13 @@ public class MemberController {
             throw new ApiException(409,"已有报名的活动不能修改时间、类型或转为草稿；可取消后重新发布");
         if(status.equals("cancelled")&&rows.stream().anyMatch(x->s(x,"status").equals("checked_in"))) throw new ApiException(409,"已有签到记录的活动不能取消");
         if(status.equals("published")&&(eventId==null||!s(event,"status").equals("published"))&&!start.isAfter(Instant.now())) throw new ApiException(400,"发布活动的开始时间须晚于当前时间");
-        event.putAll(map("title",text(input,"title",2,80),"description",text(input,"description",10,5000),"location",text(input,"location",2,150),
+        String location=text(input,"location",2,150);
+        boolean resetCheckin=eventId!=null&&(!s(event,"startsAt").equals(start.toString())||!s(event,"endsAt").equals(end.toString())||!s(event,"location").equals(location)||!status.equals("published"));
+        event.putAll(map("title",text(input,"title",2,80),"description",text(input,"description",10,5000),"location",location,
             "category",category,"status",status,"capacity",capacity,"startsAt",start.toString(),"endsAt",end.toString(),"updatedAt",now()));
         store.save("event",event);
+        // A saved radius/window belongs to the previous event schedule and venue.
+        if(resetCheckin)store.delete("event_checkin",s(event,"id"));
         if(status.equals("cancelled")) for(Map<String,Object> row:rows) {row.put("status","cancelled");store.save("signup",row);}
         auth.audit(actor,"event.save",s(event,"id"));return ApiResponse.ok(eventView(event,actor));
     }

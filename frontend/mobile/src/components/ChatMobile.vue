@@ -18,7 +18,7 @@ const uploadScope = useRequestScope();
 let cameraRequest: import('../../../shared/browserCamera').CameraRequest | null = null;
 function cancelCamera() { if (cameraRequest) { cameraRequest.cancelled = true;cameraRequest.cancel?.();cameraRequest = null; } }
 onUnmounted(cancelCamera);
-watch(() => [props.user?.id, active.value?.id, canSend.value], () => { cancelCamera();uploadScope.invalidate();uploading.value = false; }, { flush: 'sync' });
+watch([() => props.user?.id, () => active.value?.id, () => canSend.value], () => { cancelCamera();uploadScope.invalidate();uploading.value = false; }, { flush: 'sync' });
 async function attach(kind: string) {
   const room = active.value?.id;if (!room || busy.value || uploading.value || sticker.value) return;
   const valid = uploadScope.capture(), request = {};cameraRequest = request;let preview = '';uploading.value = true;error.value = '';

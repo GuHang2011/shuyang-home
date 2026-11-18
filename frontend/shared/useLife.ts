@@ -35,9 +35,9 @@ export function useLife(getUser:()=>Row|null,api:(path:string,method?:string,bod
       myApplications.value=nextApplications;rows.value=nextRows;inbox.value=nextInbox;mine.value=nextMine;feedback.value=nextFeedback;reservations.value=nextReservations;orders.value=nextOrders;signups.value=nextSignups;
     }catch(e){if(valid()&&version===generation)error.value=(e as Error).message;}finally{if(valid()&&version===generation)loading.value=false;}
   }
-  async function run(fn:()=>Promise<void>,success='操作已保存'){
+  async function run(fn:()=>Promise<void>,success:string|(()=>string)='操作已保存'){
     if(busy.value)return;busy.value=true;error.value='';message.value='';const valid=scope.capture();
-    try{await fn();if(valid())message.value=success;}catch(e){if(valid())error.value=(e as Error).message;}finally{if(valid())busy.value=false;}
+    try{await fn();if(valid())message.value=typeof success==='function'?success():success;}catch(e){if(valid())error.value=(e as Error).message;}finally{if(valid())busy.value=false;}
   }
   async function open(id:string){
     const version=++detailGeneration,valid=scope.capture();selected.value=null;applications.value=[];checked.value=[];meeting.value={};editing.value=false;actionPrompt.value=null;note.value='';applicationText.value='';error.value='';loading.value=true;
@@ -55,12 +55,12 @@ export function useLife(getUser:()=>Row|null,api:(path:string,method?:string,bod
   }
   function keepDraft(){try{const value={...form.value};delete value.photos;draft.set(key(),JSON.stringify(value));message.value='文字草稿已保存，照片请在恢复后重新选择';}catch{error.value='设备无法保存草稿，请保留文字后重试';}}
   function restoreDraft(){try{const text=draft.get(key());if(!text){message.value='暂无已保存草稿';return;}const row=JSON.parse(text);if(row.type!==type.value)throw new Error();form.value={...row,requestId:requestId(),photos:[]};photos.value=[];message.value='已恢复文字草稿';}catch{error.value='草稿无法读取，可清除后重新填写';}}
-  function clearDraft(){draft.remove(key());message.value='草稿已清除';}
+  function clearDraft(){error.value='';message.value='';try{draft.remove(key());message.value='草稿已清除';}catch{error.value='本机草稿暂未能清除，请检查设备存储设置后重试';}}
   async function save(){
     if(photoBusy.value){error.value='请等待照片上传完成，或移除失败照片';return;}
-    const valid=scope.capture();await run(async()=>{const body:Row={...form.value,type:type.value,photos:[...(form.value.photos||[]),...photos.value.map(p=>p.id)]};for(const field of fields.value){if(field.kind==='number')body[field.key]=Number(body[field.key]);if(field.kind==='datetime'&&body[field.key]&&!String(body[field.key]).endsWith('Z'))body[field.key]=new Date(String(body[field.key])+':00+08:00').toISOString();}
-      const saved=await api('/life/entries','POST',body);if(!valid())return;draft.remove(key());editing.value=false;await load();if(valid())await open(saved.id);
-    },'已保存；需审核的内容通过后展示');
+    let draftNotice='';const valid=scope.capture();await run(async()=>{const body:Row={...form.value,type:type.value,photos:[...(form.value.photos||[]),...photos.value.map(p=>p.id)]};for(const field of fields.value){if(field.kind==='number')body[field.key]=Number(body[field.key]);if(field.kind==='datetime'&&body[field.key]&&!String(body[field.key]).endsWith('Z'))body[field.key]=new Date(String(body[field.key])+':00+08:00').toISOString();}
+      const saved=await api('/life/entries','POST',body);if(!valid())return;try{draft.remove(key());}catch{draftNotice='；本机草稿暂未能清除，无需重复提交，可稍后手动清除';}editing.value=false;await load();if(valid())await open(saved.id);
+    },()=>'已保存；需审核的内容通过后展示'+draftNotice);
   }
   function ask(label:string,fn:(note:string)=>Promise<void>){note.value='';actionPrompt.value={label,run:fn};}
   async function confirmAction(){const pending=actionPrompt.value;if(!pending||note.value.trim().length<2){error.value='请填写至少2字的处理说明';return;}const valid=scope.capture();await run(async()=>{await pending.run(note.value.trim());if(valid())actionPrompt.value=null;});}

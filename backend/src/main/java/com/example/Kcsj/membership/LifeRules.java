@@ -56,7 +56,7 @@ public final class LifeRules {
         if(type.equals("progress"))out.putAll(map("referenceId",text(input,"referenceId",1,80),"milestone",choice(input,"milestone","计划安排","执行进展","延期说明","结项说明"),"plannedOn",date(input,"plannedOn",true)));
         if(type.equals("slot")){
             Instant start=instant(input,"startsAt"),end=instant(input,"endsAt");
-            if(!start.isAfter(Instant.now())||!end.isAfter(start)||Duration.between(start,end).toDays()>1)throw new ApiException(400,"请选择未来且不超过一天的自提时段");
+            if(!start.isAfter(Instant.now())||!end.isAfter(start)||Duration.between(start,end).compareTo(Duration.ofDays(1))>0)throw new ApiException(400,"请选择未来且不超过一天的自提时段");
             out.putAll(map("startsAt",start.toString(),"endsAt",end.toString(),"capacity",number(input,"capacity",1,500)));
         }
         if(Arrays.asList("help","job","lost").contains(type)&&s(out,"deadline").isEmpty())throw new ApiException(400,"请填写截止日期");
