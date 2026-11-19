@@ -22,7 +22,7 @@
 
 `node scripts/test-request-scopes.cjs` 使用已有前端依赖运行5个异步响应场景。
 
-在 `frontend` 运行 `npm run test:regression` 执行完整逻辑回归（v2.0.2 共361项），覆盖业务状态、天气、移动环境、照片队列、模块交互、聊天表情、附件错误和身份隔离等。`npm run test:mobile`、`npm run test:modules` 和 `npm run test:stickers` 可分别运行对应测试，无需启动服务。
+在 `frontend` 运行 `npm run test:regression` 执行完整逻辑回归（v2.0.3 共414项），覆盖业务状态、天气、移动环境、照片队列、模块交互、聊天表情、附件错误和身份隔离等。`npm run test:mobile`、`npm run test:modules` 和 `npm run test:stickers` 可分别运行对应测试，无需启动服务。
 
 ## v1.4.0 聊天表情包回归
 
@@ -160,3 +160,12 @@ v2.0.1 起 `check-deployment.py` 默认读取包目录或源码根目录的 VERS
 后端新增 `BusinessBoundaryTests` 5项与 `CorsConfigTests` 7项，验证活动改期和换场地后的签到配置失效、截止后同一投票重试、24小时自提边界，以及含空格多域名的真实 OPTIONS 预检。完整 `clean verify` 为214项。
 
 生产页面脚本增加超级管理员通过权限表单任命“淮新高铁”版主的流程，核对接口保存结果及其他板块未获授权，并检查390px表单布局；测试账号和token仅在隔离临时数据库及子进程内存中使用。前端与后端定向测试均先确认旧实现失败，再检查修复通过。详细结果见[本轮复查记录](../docs/上线复查与问题修复-v2.0.2.md)。
+
+
+## v2.0.3 论坛、预览与故障恢复
+
+前端完整 `test:regression` 为414项，新增 `test-client-errors.cjs` 29项、`test-chat-preview.cjs` 8项、`test-forum-people-lifecycle.cjs` 16项，覆盖普通API／上传异常响应和迟到401、聊天平台预览所有权、发帖草稿及通讯录／大屏状态隔离。前两脚本支持在未提交修复时用 `--baseline` 读取HEAD源码进行旧版本复现，不修改工作区。
+
+后端 `ForumChatBoundaryTests` 新增4项真实HTTP测试，覆盖引用楼层与双向拉黑、隐藏及禁言、群聊退出和附件会话归属、私聊拉黑后消息与附件边界。完整 `clean verify` 为218项；`test-demo-runtime.mjs` 为28项，演示楼层引用规则与后端一致。
+
+构建H5后运行 `node scripts/test-chat-preview-browser.cjs`，5项实际页面流程验证390px登录、聊天图片解码、全屏预览，以及通过正常轮询撤回图片。使用虚拟会员、临时HTTP服务和程序生成PNG；支持 `SHUYANG_CHROMIUM_PATH`。截图和JSON在被忽略的 `output/chat-preview-browser`，无需真实数据库或微信账号。H5真实浏览器结果不能代替小程序真机验收。

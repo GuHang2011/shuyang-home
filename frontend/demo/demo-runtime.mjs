@@ -191,7 +191,11 @@ export async function demoRequest(state, request) {
   if ((match = path.match(/^\/forum\/topics\/([^/]+)\/replies$/)) && method === 'POST') {
     const by=author(),topic=pick(state.topics,match[1]);if (topic.status !== 'approved' || topic.locked) fail('话题尚未公开或已关闭回复');participate(topic.category,true);if (blocked(topic.authorId)) fail('拉黑后不能向对方的话题回复');
     const photos=photoRefs(body.photoIds),audio=mediaView(state.media[body.audioId]),parentId=forumText(body,'parentId',0,80);
-    if (parentId) { const parent=pick(state.replies,parentId);if (parent.topicId !== topic.id || parent.status !== 'approved' || hiddenAuthor(parent.authorId)) fail('引用的楼层已不可用'); }
+    if (parentId) {
+      const parent=pick(state.replies,parentId);
+      if (parent.topicId !== topic.id || parent.status !== 'approved' || hiddenAuthor(parent.authorId)) fail('引用的楼层已不可用');
+      if (blocked(parent.authorId)) fail('拉黑后不能引用对方的回复');
+    }
     const row={...by,id:id('reply'),topicId:topic.id,content:forumText(body,'content',photos.length || audio ? 0 : 2,2000),parentId,status:'pending',photos,audio,floor:state.replies.filter(r => r.topicId === topic.id).length+1};state.replies.push(row);return replyView(row,topic);
   }
   if ((match = path.match(/^\/forum\/(topics|replies)\/([^/]+)\/(review|delete|lock|promotion)$/)) && !read) {

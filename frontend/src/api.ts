@@ -9,7 +9,12 @@ export async function uploadMedia(file: File, scope: string, roomId = '', progre
     request.upload.onprogress = event => { if (event.lengthComputable) progress?.(Math.round(event.loaded / event.total * 100)); };
     request.onload = () => {
       if (request.status === 401 && requestToken && requestToken === getToken()) { setToken('');window.dispatchEvent(new Event('session-expired')); }
-      try { const result = JSON.parse(request.responseText);if (request.status < 200 || request.status >= 300 || result.code !== 0) throw new Error(result.message || '上传失败，请重试');resolve(result.data); }
+      try {
+        const result = JSON.parse(request.responseText);
+        if (!result || typeof result !== 'object' || Array.isArray(result)) throw new Error('上传服务响应异常，请重试');
+        if (request.status < 200 || request.status >= 300 || result.code !== 0) throw new Error(typeof result.message === 'string' && result.message ? result.message : '上传失败，请重试');
+        resolve(result.data);
+      }
       catch (e) { reject(e instanceof SyntaxError ? new Error('上传服务响应异常，请重试') : e); }
     };
     request.onerror = () => reject(new Error('上传失败，请检查网络后重试'));
@@ -49,10 +54,14 @@ export async function api<T = any>(path: string, method = 'GET', body?: unknown)
       if (error instanceof TypeError) throw new Error('连接失败，请检查网络后重试');
       throw error;
     });
-    const result = await response.json().catch(() => ({ message: '服务响应异常，请稍后重试' }));
+    if (response.status === 401 && requestToken && requestToken === getToken()) { setToken(''); window.dispatchEvent(new Event('session-expired')); }
+    const result = await response.json().catch(error => {
+      if (error instanceof DOMException && error.name === 'AbortError') throw error;
+      throw new Error('服务响应异常，请稍后重试');
+    });
+    if (!result || typeof result !== 'object' || Array.isArray(result)) throw new Error('服务响应异常，请稍后重试');
     if (!response.ok || result.code !== 0) {
-      if (response.status === 401 && requestToken && requestToken === getToken()) { setToken(''); window.dispatchEvent(new Event('session-expired')); }
-      throw new Error(result.message || '请求未完成，请重试');
+      throw new Error(typeof result.message === 'string' && result.message ? result.message : '请求未完成，请重试');
     }
     return result.data;
   } catch (error) {

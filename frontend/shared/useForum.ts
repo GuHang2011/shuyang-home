@@ -82,7 +82,9 @@ export function useForum(getUser: () => Row | null, api: (path: string, method?:
   }
   async function post() {
     if (busy.value) return;
-    const current = scope.capture();busy.value = true;error.value = '';
+    const current = scope.capture(), draft = form.value, version = detailGeneration;
+    const currentForm = () => current() && creating.value && form.value === draft && version === detailGeneration;
+    busy.value = true;error.value = '';
     try {
       const payload: Row = { ...form.value, category: lockedBoard.value || form.value.category, audioId: form.value.audio?.id || '', photoIds: (form.value.photos || []).map((p: Row) => p.id) };
       if (payload.category === RAILWAY_BOARD) {
@@ -94,9 +96,9 @@ export function useForum(getUser: () => Row | null, api: (path: string, method?:
         if (payload.sourceUrl && !safeForumSourceUrl(payload.sourceUrl)) throw Error('来源链接请填写有效的 http 或 https 地址');
       } else { delete payload.discussionType;delete payload.sourceName;delete payload.sourceUrl; }
       await api('/forum/topics', 'POST', payload);
-      if (!current()) return;
+      if (!currentForm()) return;
       creating.value = false;tab.value = 'mine';message.value = '已提交审核';await load();
-    } catch (e) { if (current()) error.value = (e as Error).message; }
+    } catch (e) { if (currentForm()) error.value = (e as Error).message; }
     finally { if (current()) busy.value = false; }
   }
   async function respond() {

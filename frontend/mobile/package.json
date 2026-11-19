@@ -1,6 +1,6 @@
 {
   "name": "shuyang-home-mobile",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "private": true,
   "scripts": {
     "prebuild:h5": "node ../../scripts/clean-build.cjs h5",

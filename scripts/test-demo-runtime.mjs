@@ -46,6 +46,25 @@ test('railway bans and blocks affect reading and posting while other boards rema
   await call(state,'/forum/restrictions','POST',{board:'淮新高铁',userId:'demo-member',action:'restore',reason:'恢复参与'},'demo-admin');
   await call(state,'/members/demo-admin/block','POST',{active:true});await assert.rejects(call(state,'/forum/topics/demo-rail-rules'));await assert.rejects(call(state,'/forum/topics/demo-rail-rules/replies','POST',{content:'演示回复'}));
 });
+test('reply quotes cannot bypass another member block on a third-party topic', async () => {
+  const state=createDemoState();state.users.push({...state.users[0],id:'quote-member',name:'引用测试会员'});
+  const path='/forum/topics/demo-rail-rules/replies';
+  const parent=await call(state,path,'POST',{content:'另一位会员的楼层内容'},'quote-member');
+  await call(state,'/forum/replies/'+parent.id+'/review','POST',{status:'approved'},'demo-admin');
+  await call(state,'/members/demo-member/block','POST',{active:true},'quote-member');
+  const before=structuredClone(state);
+  await assert.rejects(call(state,path,'POST',{content:'不能通过引用绕过对方拉黑',parentId:parent.id}),/拉黑后不能引用对方的回复/);
+  assert.deepEqual(state,before,'Rejected quote must not mutate demo records');
+  await call(state,path,'POST',{content:'仍能参与第三人的普通讨论'});
+  await call(state,'/members/demo-member/block','POST',{active:false},'quote-member');
+  assert.equal((await call(state,path,'POST',{content:'解除拉黑后可以引用',parentId:parent.id})).parentId,parent.id);
+  await call(state,'/members/quote-member/block','POST',{active:true});
+  await assert.rejects(call(state,path,'POST',{content:'已隐藏作者的楼层不能引用',parentId:parent.id}),/引用的楼层已不可用/);
+  await call(state,'/members/quote-member/block','POST',{active:false});
+  await call(state,'/forum/replies/'+parent.id+'/review','POST',{status:'hidden',note:'隐藏引用来源'},'demo-admin');
+  await assert.rejects(call(state,path,'POST',{content:'隐藏楼层不能引用',parentId:parent.id}),/引用的楼层已不可用/);
+});
+
 test('railway pin cap and revisions are enforced and hidden topics lose promotion', async () => {
   const state=createDemoState();for(let i=0;i<2;i++){const row=await call(state,'/forum/topics','POST',{...railDraft(),title:'新置顶演示话题'+i});await call(state,'/forum/topics/'+row.id+'/review','POST',{status:'approved'},'demo-admin');await call(state,'/forum/topics/'+row.id+'/promotion','PUT',{revision:0,pinned:true},'demo-admin');}
   await assert.rejects(call(state,'/forum/topics/demo-rail-transfer/promotion','PUT',{revision:1,pinned:true},'demo-admin'));

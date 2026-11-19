@@ -86,7 +86,13 @@ public class CommunityController {
         String audioId=text(input,"audioId",0,80);List<String> photos=photoIds(input);
         auth.limit("reply:"+s(actor,"id"),30);Map<String,Object> reply=author(actor);reply.putAll(map("topicId",id,"content",text(input,"content",audioId.isEmpty()&&photos.isEmpty()?2:0,2000)));
         List<Map<String,Object>> history=store.all("forum_reply").stream().filter(r->s(r,"topicId").equals(id)).sorted(Comparator.comparing(r->s(r,"createdAt"))).collect(Collectors.toList());int floor=0;for(Map<String,Object> old:history){floor++;if(!old.containsKey("floor")){old.put("floor",floor);store.save("forum_reply",old);}}
-        reply.put("floor",floor+1);String parent=text(input,"parentId",0,80);if(!parent.isEmpty()){Map<String,Object> quoted=store.get("forum_reply",parent);if(!s(quoted,"topicId").equals(id)||!s(quoted,"status").equals("approved")||policy.hiddenAuthor(actor,s(quoted,"authorId")))throw new ApiException(400,"引用的楼层已不可用");reply.put("parentId",parent);}
+        reply.put("floor",floor+1);String parent=text(input,"parentId",0,80);
+        if(!parent.isEmpty()) {
+            Map<String,Object> quoted=store.get("forum_reply",parent);
+            if(!s(quoted,"topicId").equals(id)||!s(quoted,"status").equals("approved")||policy.hiddenAuthor(actor,s(quoted,"authorId")))throw new ApiException(400,"引用的楼层已不可用");
+            if(policy.blocked(s(actor,"id"),s(quoted,"authorId")))throw new ApiException(403,"拉黑后不能引用对方的回复");
+            reply.put("parentId",parent);
+        }
         if(!audioId.isEmpty())reply.put("audio",media.bindForum(audioId,"forum_reply",s(reply,"id"),actor));
         reply.put("photos",media.bindForumPhotos(photos,"forum_reply",s(reply,"id"),actor));
         store.save("forum_reply",reply);auth.audit(actor,"forum.reply",s(reply,"id"));return ApiResponse.ok(reply);
