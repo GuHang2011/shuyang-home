@@ -1,16 +1,68 @@
 <script setup lang="ts">
-import { defineComponent, h, onUnmounted, ref } from 'vue';
+import { defineComponent, h, nextTick, onUnmounted, ref } from 'vue';
 import type { BrowserQRCodeReader, IScannerControls } from '@zxing/browser';
 import { decodeQrImage } from '../../shared/decodeQrImage';
 withDefaults(defineProps<{ confirmLabel?: string }>(), { confirmLabel: '确认打开站内签到' });
-const emit = defineEmits<{ (event: 'result', value: string): void }>();const video = ref<HTMLVideoElement | null>(null), error = ref(''), running = ref(false), result = ref('');let reader: BrowserQRCodeReader | undefined, controls: IScannerControls | undefined;let disposed = false;
-async function decoder() { if (!reader) { const module = await import('@zxing/browser');reader = new module.BrowserQRCodeReader(); }return reader; }
-function stop() { controls?.stop();controls = undefined;running.value = false; }
-function found(value: string) { result.value = value;stop(); }
-async function start() { error.value = '';result.value = '';if (!navigator.mediaDevices?.getUserMedia || !window.isSecureContext) { error.value = '摄像头需要HTTPS或localhost访问，也可以选择二维码图片识别。';return; }try { running.value = true;const qrReader = await decoder();if (disposed || !running.value) return;const control = await qrReader.decodeFromConstraints({ video: { facingMode: { ideal: 'environment' } } },video.value!, (value, _, control) => { if (value) { control.stop();found(value.getText()); } });if (disposed || !running.value) control.stop();else controls = control; } catch { stop();error.value = '未能打开摄像头，请检查摄像头权限，或选择二维码图片。'; } }
-async function image(event: Event) { stop();error.value = '';const input = event.target as HTMLInputElement,file = input.files?.[0];if (!file) return;const url = URL.createObjectURL(file);try { const value = await decodeQrImage(await decoder(), url);if (!disposed) found(value); } catch { if (!disposed) error.value = '没有识别到二维码，请选用清晰、完整的图片。'; } finally { URL.revokeObjectURL(url);input.value = ''; } }
+const emit = defineEmits<{ (event: 'result', value: string): void }>();
+const video = ref<HTMLVideoElement | null>(null), cameraKey = ref(0), error = ref(''), running = ref(false), result = ref('');
+let controls: IScannerControls | undefined, disposed = false, generation = 0, imageUrl = '';
+async function decoder(): Promise<BrowserQRCodeReader> {
+  const module = await import('@zxing/browser');
+  // Image fallback changes reader hints; keep each attempt independent.
+  return new module.BrowserQRCodeReader();
+}
+function current(version: number) { return !disposed && version === generation; }
+function releaseImage(url: string) {
+  if (!url || imageUrl !== url) return;
+  URL.revokeObjectURL(url);imageUrl = '';
+}
+function stop() {
+  ++generation;controls?.stop();controls = undefined;running.value = false;releaseImage(imageUrl);
+}
+function found(value: string, version: number) {
+  if (!current(version)) return;
+  result.value = value;stop();
+}
+async function start() {
+  if (disposed || running.value) return;
+  stop();const version = generation;error.value = '';result.value = '';
+  if (!navigator.mediaDevices?.getUserMedia || !window.isSecureContext) {
+    error.value = '摄像头需要HTTPS或localhost访问，也可以选择二维码图片识别。';return;
+  }
+  running.value = true;cameraKey.value = version;
+  try {
+    await nextTick();
+    if (!current(version)) return;
+    const qrReader = await decoder();
+    if (!current(version)) return;
+    if (!video.value) throw Error('Camera preview unavailable');
+    const control = await qrReader.decodeFromConstraints({ video: { facingMode: { ideal: 'environment' } } }, video.value, (value, _, control) => {
+      if (!current(version)) { control.stop();return; }
+      if (value) { control.stop();found(value.getText(), version); }
+    });
+    if (!current(version)) control.stop();else controls = control;
+  } catch {
+    if (!current(version)) return;
+    stop();error.value = '未能打开摄像头，请检查摄像头权限，或选择二维码图片。';
+  }
+}
+async function image(event: Event) {
+  const input = event.target as HTMLInputElement, file = input.files?.[0];input.value = '';
+  if (!file || disposed) return;
+  stop();const version = generation;error.value = '';result.value = '';
+  const url = URL.createObjectURL(file);imageUrl = url;
+  try {
+    const qrReader = await decoder();
+    if (!current(version)) return;
+    const value = await decodeQrImage(qrReader, url);found(value, version);
+  } catch {
+    if (current(version)) error.value = '没有识别到二维码，请选用清晰、完整的图片。';
+  } finally { releaseImage(url); }
+}
 // Render native DOM tags so uni-app H5 does not rewrite them as uni-input/uni-video.
 const NativeCamera = defineComponent(() => () => h('video', {
+  // ZXing clears its video on stop, including when an older startup resolves late.
+  key: cameraKey.value,
   ref: (el: any) => { video.value = el; }, autoplay: true, muted: true, playsinline: true,
   style: { display: running.value ? 'block' : 'none', width: '100%', maxHeight: '350px', borderRadius: '15px', background: '#1c3446', margin: '18px 0' }
 }));

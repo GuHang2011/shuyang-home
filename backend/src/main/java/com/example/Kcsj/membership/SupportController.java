@@ -70,11 +70,13 @@ public class SupportController {
     @GetMapping("/crowdfunding/{id}/pledges") public Map<String,Object> projectPledges(@PathVariable String id,HttpServletRequest req) {requireProjectOwner(id,req);return ApiResponse.ok(pledges(id));}
     @PostMapping("/pledges/{id}/cancel") public Map<String,Object> cancelPledge(@PathVariable String id,HttpServletRequest req) {
         store.lockWrites();Map<String,Object> actor=member(req),row=store.get("crowd_pledge",id);if(!s(row,"supporterId").equals(s(actor,"id")))throw new ApiException(403,"只能取消自己的认领");
+        if(s(row,"status").equals("cancelled"))return ApiResponse.ok(row);
         if(s(row,"status").equals("delivered"))throw new ApiException(409,"已核实交付的记录不能取消");row.put("status","cancelled");store.save("crowd_pledge",row);auth.audit(actor,"crowdfunding.cancel",id);return ApiResponse.ok(row);
     }
     @PostMapping("/pledges/{id}/deliver") public Map<String,Object> deliverPledge(@PathVariable String id,HttpServletRequest req) {
         store.lockWrites();Map<String,Object> row=store.get("crowd_pledge",id),actor=requireProjectOwner(s(row,"projectId"),req);
         if(s(row,"projectType").equals("资金意向"))throw new ApiException(400,"资金仅登记意向，不能标为收款或已交付");
+        if(s(row,"status").equals("delivered"))return ApiResponse.ok(row);
         if(s(row,"status").equals("cancelled"))throw new ApiException(409,"该认领已取消");row.putAll(map("status","delivered","confirmedAt",now(),"confirmedBy",s(actor,"id")));store.save("crowd_pledge",row);auth.audit(actor,"crowdfunding.deliver",id);return ApiResponse.ok(row);
     }
 

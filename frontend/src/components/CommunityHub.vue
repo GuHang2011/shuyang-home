@@ -16,18 +16,19 @@ const filtered = computed(() => (tab.value === 'mine' ? own.value : rows.value).
 const availability: Record<string, string> = { available: '可交换', reserved: '交换中', exchanged: '已完成交换', closed: '已关闭' };
 let generation = 0, detailGeneration = 0;
 const scope = useRequestScope();
+watch([modal, form, tab, () => selected.value.id], () => { ++detailGeneration; }, { flush: 'sync' });
 onUnmounted(() => { ++generation; });
 async function load() {
-  const version = ++generation;loading.value = true;error.value = '';
+  const version = ++generation, viewVersion = detailGeneration;loading.value = true;error.value = '';
   try {
     const data = await api(forum.value ? '/forum/topics' : '/resources'); if (version !== generation) return; rows.value = data;
     if (props.user) { const mine = await api(forum.value ? '/my/forum' : '/my/resources'); if (version !== generation) return; own.value = mine; }
     if (!forum.value && props.user) { const data = await api('/my/exchanges'); if (version !== generation) return; exchanges.value = data; }
     if (staff.value) { const data = await api(forum.value ? '/admin/forum' : '/admin/resources'); if (version !== generation) return; managed.value = forum.value ? data.topics : data.resources; managedReplies.value = forum.value ? data.replies : data.exchanges; }
-  } catch (e) { if (version === generation) error.value = (e as Error).message; } finally { if (version === generation) loading.value = false; }
+  } catch (e) { if (version === generation && viewVersion === detailGeneration) error.value = (e as Error).message; } finally { if (version === generation) loading.value = false; }
 }
 function member() { if (!props.user || props.user.status !== 'approved') { emit('join'); return false; } return true; }
-async function open(kind: string, data: Row = {}) { const current = scope.capture();const detailVersion = ++detailGeneration; form.value = { ...data }; modal.value = kind; error.value = ''; await nextTick();if (!current() || detailVersion !== detailGeneration) return; if (!dialog.value?.open) dialog.value?.showModal(); }
+async function open(kind: string, data: Row = {}) { const current = scope.capture(); form.value = { ...data }; modal.value = kind; error.value = ''; const detailVersion = ++detailGeneration;await nextTick();if (!current() || detailVersion !== detailGeneration) return; if (!dialog.value?.open) dialog.value?.showModal(); }
 function close() { if (busy.value) return;++detailGeneration; dialog.value?.close(); modal.value = ''; }
 function create() { if (member()) open(forum.value ? 'topic' : 'resource', forum.value ? { title: '', category: forumCategories[0], content: '' } : { title: '', category: resourceCategories[0], offering: '', seeking: '', district: props.user?.district || '', contact: '' }); }
 async function detail(row: Row) { const current = scope.capture();
@@ -36,9 +37,14 @@ async function detail(row: Row) { const current = scope.capture();
   if (forum.value) { try { const data = await api('/forum/topics/' + row.id); if (!current() || selected.value.id !== row.id) return;selected.value = data.topic; replies.value = data.replies; } catch (e) { error.value = (e as Error).message; } }
 }
 async function act(action: () => Promise<any>, text: string, keep = false) {
-  if (busy.value) return;const current = scope.capture(), id = selected.value.id;busy.value = true;error.value = '';
-  try { await action();if (!current()) return;busy.value = false;if (!keep) close();message.value = text;await load();if (current() && keep && forum.value && selected.value.id === id) { const data = await api('/forum/topics/' + id);if (!current() || selected.value.id !== id) return;selected.value = data.topic;replies.value = data.replies;replyContent.value = ''; } }
-  catch(e) { if (current()) error.value = (e as Error).message; }finally { if (current()) busy.value = false; }
+  if (busy.value) return;const current = scope.capture(), id = selected.value.id, viewVersion = detailGeneration;busy.value = true;error.value = '';
+  const sameView = () => current() && viewVersion === detailGeneration;
+  try {
+    await action();if (!sameView()) return;
+    await load();if (!sameView()) return;
+    if (!keep) { busy.value = false;close(); }message.value = text;
+    if (keep && sameView() && forum.value && selected.value.id === id) { const data = await api('/forum/topics/' + id);if (!sameView() || selected.value.id !== id) return;selected.value = data.topic;replies.value = data.replies;replyContent.value = ''; }
+  } catch(e) { if (sameView()) error.value = (e as Error).message; }finally { if (current()) busy.value = false; }
 }
 function review(row: Row, type: string) { open('review', { ...row, endpoint: type, originalStatus: row.status, status: row.status === 'approved' ? 'hidden' : 'approved', note: '' }); }
 function changeExchange(row: Row, action: string) { open('confirm', { path: '/exchanges/' + row.id + '/action', body: { action }, text: action === 'confirm' ? '请确认你负责的资源或服务已经实际交付。双方都确认后，交换才会完成。' : action === 'accept' ? '接受后该资源将保留给这位老乡，其他待处理申请会自动关闭。' : action === 'reject' ? '确认拒绝本次交换申请？' : '确认取消尚未接受的交换申请？' }); }

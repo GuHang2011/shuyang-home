@@ -9,16 +9,22 @@ const emit = defineEmits<{ (event: 'join'): void; (event: 'updated'): void }>();
 const rows = ref<Row[]>([]), mine = ref<Row[]>([]), tab = ref(props.mode === 'activities' ? 'mine' : 'public'), screen = ref(''), selected = ref<Row>({}), form = ref<Row>({}), choices = ref<string[]>([]), error = ref(''), busy = ref(false);
 const visible = computed(() => tab.value === 'mine' ? mine.value : rows.value);
 const loading = ref(false);
-let generation = 0, detailGeneration = 0;
+let generation = 0, detailGeneration = 0, confirmationGeneration = 0;
 const scope = useRequestScope();
+watch([screen, form, tab, () => selected.value.id], () => { ++detailGeneration; }, { flush: 'sync' });
 onUnmounted(() => { ++generation; });
-async function load() { const version = ++generation;loading.value = true;error.value = '';try { if (props.mode !== 'activities') { const data = await api(props.mode === 'ads' ? '/ads' : '/polls');if (version !== generation) return;rows.value = data; }if (props.user && props.mode !== 'polls') { const data = await api(props.mode === 'ads' ? '/my/ads' : '/my/event-proposals');if (version !== generation) return;mine.value = data; } }catch(e) { if (version === generation) error.value = (e as Error).message; } finally { if (version === generation) loading.value = false; } }
+async function load() { const version = ++generation, viewVersion = detailGeneration;loading.value = true;error.value = '';try { if (props.mode !== 'activities') { const data = await api(props.mode === 'ads' ? '/ads' : '/polls');if (version !== generation) return;rows.value = data; }if (props.user && props.mode !== 'polls') { const data = await api(props.mode === 'ads' ? '/my/ads' : '/my/event-proposals');if (version !== generation) return;mine.value = data; } }catch(e) { if (version === generation && viewVersion === detailGeneration) error.value = (e as Error).message; } finally { if (version === generation) loading.value = false; } }
 function member() { if (!props.user || props.user.status !== 'approved') { emit('join');return false; }return true; }
 function create() { if (!member()) return;error.value = '';screen.value = 'create';const dates = { startsAt: localDateInput(new Date(Date.now() + 86400000)), endsAt: localDateInput(new Date(Date.now() + 2 * 86400000)) };form.value = props.mode === 'ads' ? { title: '', sponsor: '', content: '', placement: 'home', url: '', contact: '', consent: false, ...dates } : { title: '', description: '', category: eventCategories[0], location: '', capacity: 20, ...dates }; }
 async function act(action: () => Promise<any>, text: string, keep = false) {
-  if (busy.value) return;const current = scope.capture(), id = selected.value.id;busy.value = true;error.value = '';
-  try { await action();if (!current()) return;if (!keep) screen.value = '';uni.showToast({ title: text, icon: 'none' });await load();if (current()) emit('updated'); }
-  catch(e) { if (current()) error.value = (e as Error).message; }finally { if (current()) busy.value = false; }
+  if (busy.value) return;const current = scope.capture(), id = selected.value.id, viewVersion = detailGeneration;busy.value = true;error.value = '';
+  const sameView = () => current() && viewVersion === detailGeneration;
+  try {
+    await action();if (!sameView()) return;
+    await load();if (!sameView()) return;
+    if (!keep) { screen.value = ''; }uni.showToast({ title: text, icon: 'none' });
+    if (current()) emit('updated');
+  } catch(e) { if (sameView()) error.value = (e as Error).message; }finally { if (current()) busy.value = false; }
 }
 function save() { act(() => api(props.mode === 'ads' ? '/ads' : '/event-proposals', 'POST', { ...form.value, startsAt: fromLocalInput(form.value.startsAt), endsAt: fromLocalInput(form.value.endsAt), capacity: Number(form.value.capacity) }), '申请已提交审核'); }
 function choose(event: any) { if (props.mode === 'ads') form.value.placement = ['home', 'events'][Number(event.detail.value)];else form.value.category = eventCategories[Number(event.detail.value)]; }
@@ -26,7 +32,7 @@ function copy(value: string) { uni.setClipboardData({ data: value }); }
 function consent(event: any) { form.value.consent = Boolean(event.detail.value); }
 function select(event: any) { choices.value = event.detail.value; }
 function detail(row: Row) { selected.value = row;choices.value = [...(row.myChoices || [])];screen.value = 'detail';error.value = ''; }
-function withdraw(row: Row) { const current = scope.capture();uni.showModal({ title: '撤下广告', content: '确认撤下后将立即停止展示。', success: result => { if (result.confirm && current()) act(() => api('/ads/' + row.id + '/withdraw', 'POST'), '已撤下'); } }); }
+function withdraw(row: Row) { const current = scope.capture(), viewVersion = detailGeneration, confirmation = ++confirmationGeneration;uni.showModal({ title: '撤下广告', content: '确认撤下后将立即停止展示。', success: result => { if (!current() || viewVersion !== detailGeneration || confirmation !== confirmationGeneration) return;++confirmationGeneration;if (result.confirm) act(() => api('/ads/' + row.id + '/withdraw', 'POST'), '已撤下'); } }); }
 watch([() => props.mode, () => props.user?.id, () => props.user?.status, () => props.user?.role], () => { scope.invalidate();++detailGeneration;busy.value = false;selected.value = {};form.value = {};error.value = '';screen.value = '';choices.value = [];++generation;rows.value = [];mine.value = [];screen.value = '';tab.value = props.mode === 'activities' ? 'mine' : 'public';load(); }, { flush: 'sync' });
 onMounted(load);
 </script>

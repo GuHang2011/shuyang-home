@@ -13,19 +13,25 @@ const visible = computed(() => tab.value === 'mine' ? mine.value : tab.value ===
 const loading = ref(false);
 let generation = 0, detailGeneration = 0;
 const scope = useRequestScope();
+watch([modal, form, tab, () => selected.value.id], () => { ++detailGeneration; }, { flush: 'sync' });
 onUnmounted(() => { ++generation; });
-async function load() { const version = ++generation;loading.value = true;error.value = '';try {
+async function load() { const version = ++generation, viewVersion = detailGeneration;loading.value = true;error.value = '';try {
   if (props.mode === 'crowdfunding') { const data = await api('/crowdfunding');if (version !== generation) return;rows.value = data;if (props.user) { const data = await Promise.all([api('/my/crowdfunding'), api('/my/pledges')]);if (version !== generation) return;[mine.value, pledges.value] = data; }if (staff.value) { const data = await api('/admin/crowdfunding');if (version !== generation) return;managed.value = data; } }
   else if (props.user) { const data = await api('/my/contact-exchanges');if (version !== generation) return;rows.value = data;if (props.user.status === 'approved') { const data = await api('/members');if (version !== generation) return;members.value = data.filter((m: Row) => m.id !== props.user?.id); } }
-} catch(e) { if (version === generation) error.value = (e as Error).message; } finally { if (version === generation) loading.value = false; } }
+} catch(e) { if (version === generation && viewVersion === detailGeneration) error.value = (e as Error).message; } finally { if (version === generation) loading.value = false; } }
 function member() { if (!props.user || props.user.status !== 'approved') { emit('join');return false; }return true; }
-async function open(kind: string, data: Row = {}) { const current = scope.capture();const detailVersion = ++detailGeneration; error.value = '';form.value = { ...data };modal.value = kind;await nextTick();if (!current() || detailVersion !== detailGeneration) return;if (!dialog.value?.open) dialog.value?.showModal(); }
+async function open(kind: string, data: Row = {}) { const current = scope.capture(); error.value = '';form.value = { ...data };modal.value = kind;const detailVersion = ++detailGeneration;await nextTick();if (!current() || detailVersion !== detailGeneration) return;if (!dialog.value?.open) dialog.value?.showModal(); }
 function close() { if (busy.value) return;++detailGeneration;dialog.value?.close();modal.value = '';emit('clear-target'); }
 function create() { if (!member()) return;open(props.mode === 'contacts' ? 'contact' : 'project', props.mode === 'contacts' ? { recipientId: '', contact: '', message: '' } : { title: '', type: '物资', unit: '件', goal: 10, purpose: '', description: '', endsAt: localDateInput(new Date(Date.now() + 14 * 86400000)), consent: false }); }
 async function act(action: () => Promise<any>, text: string, keep = false) {
-  if (busy.value) return;const current = scope.capture(), id = selected.value.id;busy.value = true;error.value = '';
-  try { await action();if (!current()) return;busy.value = false;if (!keep) close();message.value = text;await load();if (current() && keep && selected.value.id === id && modal.value === 'supporters') { const data = await api('/crowdfunding/' + id + '/pledges');if (current() && selected.value.id === id && modal.value === 'supporters') details.value = data; } }
-  catch(e) { if (current()) error.value = (e as Error).message; }finally { if (current()) busy.value = false; }
+  if (busy.value) return;const current = scope.capture(), id = selected.value.id, viewVersion = detailGeneration;busy.value = true;error.value = '';
+  const sameView = () => current() && viewVersion === detailGeneration;
+  try {
+    await action();if (!sameView()) return;
+    await load();if (!sameView()) return;
+    if (!keep) { busy.value = false;close(); }message.value = text;
+    if (keep && sameView() && selected.value.id === id && modal.value === 'supporters') { const data = await api('/crowdfunding/' + id + '/pledges');if (sameView() && selected.value.id === id && modal.value === 'supporters') details.value = data; }
+  } catch(e) { if (sameView()) error.value = (e as Error).message; }finally { if (current()) busy.value = false; }
 }
 function detail(row: Row) { selected.value = row;open('detail'); }
 function support(row: Row) { if (!member()) return;selected.value = row;open('pledge', { quantity: '', message: '', requestId: requestId() }); }

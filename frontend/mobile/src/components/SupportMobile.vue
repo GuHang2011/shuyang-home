@@ -12,11 +12,12 @@ const types = ['物资', '志愿服务', '资金意向'];
 const visible = computed(() => tab.value === 'mine' ? mine.value : rows.value);
 const staff = computed(() => props.user && ['superadmin', 'admin', 'organizer'].includes(props.user.role));
 const loading = ref(false);
-let generation = 0, detailGeneration = 0;
+let generation = 0, detailGeneration = 0, confirmationGeneration = 0;
 const scope = useRequestScope();
+watch([screen, form, tab, () => selected.value.id], () => { ++detailGeneration; }, { flush: 'sync' });
 onUnmounted(() => { ++generation; });
 async function load() {
-  const version = ++generation;loading.value = true;error.value = '';
+  const version = ++generation, viewVersion = detailGeneration;loading.value = true;error.value = '';
   try {
     if (props.mode === 'crowdfunding') {
       const data = await api('/crowdfunding');if (version !== generation) return;rows.value = data;
@@ -25,7 +26,7 @@ async function load() {
       const data = await api('/my/contact-exchanges');if (version !== generation) return;rows.value = data;
       if (props.user.status === 'approved') { const data = await api('/members');if (version !== generation) return;members.value = data.filter((m: Row) => m.id !== props.user?.id); }
     }
-  } catch(e) { if (version === generation) error.value = (e as Error).message; }
+  } catch(e) { if (version === generation && viewVersion === detailGeneration) error.value = (e as Error).message; }
 finally { if (version === generation) loading.value = false; } }
 function member() { if (!props.user || props.user.status !== 'approved') { emit('join');return false; }return true; }
 function open(kind: string, data: Row = {}) { ++detailGeneration; screen.value = kind;form.value = { ...data };error.value = '';uni.pageScrollTo({ scrollTop: 0, duration: 0 }); }
@@ -35,9 +36,14 @@ function create() {
   open(props.mode === 'contacts' ? 'contact' : 'project', props.mode === 'contacts' ? { recipientId: '', recipientName: '', contact: '', message: '' } : { title: '', type: '物资', unit: '件', goal: '', purpose: '', description: '', endsAt: localDateInput(new Date(Date.now() + 14 * 86400000)), consent: false });
 }
 async function act(action: () => Promise<any>, text: string, keep = false) {
-  if (busy.value) return;const current = scope.capture(), id = selected.value.id;busy.value = true;error.value = '';
-  try { await action();if (!current()) return;if (!keep) { screen.value = '';emit('clear-target'); }uni.showToast({ title: text, icon: 'none' });await load();if (current() && keep && selected.value.id === id && screen.value === 'supporters') { const data = await api('/crowdfunding/' + id + '/pledges');if (current() && selected.value.id === id && screen.value === 'supporters') details.value = data; } }
-  catch(e) { if (current()) error.value = (e as Error).message; }finally { if (current()) busy.value = false; }
+  if (busy.value) return;const current = scope.capture(), id = selected.value.id, viewVersion = detailGeneration;busy.value = true;error.value = '';
+  const sameView = () => current() && viewVersion === detailGeneration;
+  try {
+    await action();if (!sameView()) return;
+    await load();if (!sameView()) return;
+    if (!keep) { screen.value = '';emit('clear-target'); }uni.showToast({ title: text, icon: 'none' });
+    if (keep && sameView() && selected.value.id === id && screen.value === 'supporters') { const data = await api('/crowdfunding/' + id + '/pledges');if (sameView() && selected.value.id === id && screen.value === 'supporters') details.value = data; }
+  } catch(e) { if (sameView()) error.value = (e as Error).message; }finally { if (current()) busy.value = false; }
 }
 function detail(row: Row) { selected.value = row;open('detail'); }
 function support(row: Row) { if (!member()) return;selected.value = row;open('pledge', { quantity: '', message: '', requestId: requestId() }); }
@@ -48,7 +54,7 @@ async function supporters(row: Row) {
   if (!valid()) return;
   try { const data = await api('/crowdfunding/' + row.id + '/pledges');if (valid()) details.value = data; }catch(e) { if (valid()) error.value = (e as Error).message; }
 }
-function confirm(path: string, content: string, body?: Row, keep = false) { const current = scope.capture();uni.showModal({ title: '请确认', content, success: result => { if (result.confirm && current()) act(() => api(path, 'POST', body), '操作已完成', keep); } }); }
+function confirm(path: string, content: string, body?: Row, keep = false) { const current = scope.capture(), viewVersion = detailGeneration, confirmation = ++confirmationGeneration;uni.showModal({ title: '请确认', content, success: result => { if (!current() || viewVersion !== detailGeneration || confirmation !== confirmationGeneration) return;++confirmationGeneration;if (result.confirm) act(() => api(path, 'POST', body), '操作已完成', keep); } }); }
 function chooseType(event: any) { form.value.type = types[Number(event.detail.value)];form.value.unit = form.value.type === '资金意向' ? '元' : form.value.type === '志愿服务' ? '小时' : '件'; }
 function chooseMember(event: any) { const person = members.value[Number(event.detail.value)];if (person) { form.value.recipientId = person.id;form.value.recipientName = person.name; } }
 function consent(event: any) { form.value.consent = Boolean(event.detail.value); }

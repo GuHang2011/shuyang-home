@@ -147,6 +147,12 @@ with tempfile.TemporaryDirectory(prefix='shuyang-proxy-') as temp:
                 (output / 'browser.log').write_text(browser.stdout + browser.stderr, encoding='utf-8')
                 print(browser.stdout, end='')
                 assert browser.returncode == 0, browser.stderr
+                # Permissions may rotate existing member sessions; sign in after that regression.
+                browser_env['SHUYANG_TEST_MEMBER_TOKEN'] = fixture_request('/auth/login', {'username': profile['phone'], 'password': profile['password']})['token']
+                checkin_browser = subprocess.run(['node', str(root / 'scripts/test-checkin-browser.cjs'), origin], env=browser_env, capture_output=True, text=True, encoding='utf-8', **flags)
+                (output / 'checkin-browser.log').write_text(checkin_browser.stdout + checkin_browser.stderr, encoding='utf-8')
+                print(checkin_browser.stdout, end='')
+                assert checkin_browser.returncode == 0, checkin_browser.stderr
             (output / 'result.json').write_text(json.dumps({'version': version, 'https': True, 'checks': 16, 'passed': True, 'compression': compression}), encoding='utf-8')
     finally:
         if proxy:

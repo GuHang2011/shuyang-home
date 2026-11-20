@@ -12,26 +12,32 @@ const categories = computed(() => forum.value ? forumCategories : resourceCatego
 const visible = computed(() => (tab.value === 'mine' ? mine.value : rows.value).filter(r => (filter.value === '全部' || filter.value === r.category) && [r.title, r.content, r.offering, r.seeking, r.district].join(' ').includes(search.value)));
 const availability: Record<string, string> = { available: '可交换', reserved: '交换中', exchanged: '已完成交换', closed: '已关闭' };
 const loading = ref(false);
-let generation = 0, detailGeneration = 0;
+let generation = 0, detailGeneration = 0, confirmationGeneration = 0;
 const scope = useRequestScope();
+watch([screen, form, tab, () => selected.value.id], () => { ++detailGeneration; }, { flush: 'sync' });
 onUnmounted(() => { ++generation; });
 async function load() {
-  const version = ++generation;loading.value = true;error.value = '';
+  const version = ++generation, viewVersion = detailGeneration;loading.value = true;error.value = '';
   try { const data = await api(forum.value ? '/forum/topics' : '/resources'); if (version !== generation) return; rows.value = data;
     if (props.user) { const data = await api(forum.value ? '/my/forum' : '/my/resources'); if (version !== generation) return; mine.value = data; }
     if (!forum.value && props.user) { const data = await api('/my/exchanges'); if (version !== generation) return; exchanges.value = data; }
-  } catch (e) { if (version === generation) error.value = (e as Error).message; }
+  } catch (e) { if (version === generation && viewVersion === detailGeneration) error.value = (e as Error).message; }
 finally { if (version === generation) loading.value = false; } }
 function member() { if (!props.user || props.user.status !== 'approved') { emit('join'); return false; } return true; }
 function create() { if (!member()) return; screen.value = 'create'; error.value = ''; form.value = forum.value ? { title: '', content: '', category: forumCategories[0] } : { title: '', category: resourceCategories[0], offering: '', seeking: '', district: props.user?.district || '', contact: '' }; }
 async function detail(row: Row) { const current = scope.capture(); selected.value = row; replies.value = []; replyContent.value = ''; screen.value = 'detail'; error.value = ''; if (forum.value) try { const data = await api('/forum/topics/' + row.id); if (!current() || selected.value.id !== row.id) return;selected.value = data.topic; replies.value = data.replies; } catch (e) { error.value = (e as Error).message; } }
 async function act(action: () => Promise<any>, text: string, keep = false) {
-  if (busy.value) return;const current = scope.capture(), id = selected.value.id;busy.value = true;error.value = '';
-  try { await action();if (!current()) return;if (!keep) screen.value = '';uni.showToast({ title: text, icon: 'none' });await load();if (current() && keep && selected.value.id === id) await detail(selected.value); }
-  catch(e) { if (current()) error.value = (e as Error).message; }finally { if (current()) busy.value = false; }
+  if (busy.value) return;const current = scope.capture(), id = selected.value.id, viewVersion = detailGeneration;busy.value = true;error.value = '';
+  const sameView = () => current() && viewVersion === detailGeneration;
+  try {
+    await action();if (!sameView()) return;
+    await load();if (!sameView()) return;
+    if (!keep) { screen.value = ''; }uni.showToast({ title: text, icon: 'none' });
+    if (keep && sameView() && selected.value.id === id) await detail(selected.value);
+  } catch(e) { if (sameView()) error.value = (e as Error).message; }finally { if (current()) busy.value = false; }
 }
 function choose(event: any) { form.value.category = categories.value[Number(event.detail.value)]; }
-function confirm(path: string, body: Row | undefined, content: string) { const current = scope.capture();uni.showModal({ title: '请确认', content, success: result => { if (result.confirm && current()) act(() => api(path, 'POST', body), '操作已完成'); } }); }
+function confirm(path: string, body: Row | undefined, content: string) { const current = scope.capture(), viewVersion = detailGeneration, confirmation = ++confirmationGeneration;uni.showModal({ title: '请确认', content, success: result => { if (!current() || viewVersion !== detailGeneration || confirmation !== confirmationGeneration) return;++confirmationGeneration;if (result.confirm) act(() => api(path, 'POST', body), '操作已完成'); } }); }
 function exchange(row: Row, action: string) { confirm('/exchanges/' + row.id + '/action', { action }, action === 'confirm' ? '请确认自己负责的资源或服务已实际交付，双方确认后才完成。' : action === 'accept' ? '接受后资源将保留给此申请者，其他待处理申请会自动关闭。' : action === 'reject' ? '确认拒绝此次申请？' : '确认取消尚未接受的申请？'); }
 watch([() => props.mode, () => props.user?.id, () => props.user?.status, () => props.user?.role], () => { scope.invalidate();++detailGeneration;busy.value = false;selected.value = {};form.value = {};error.value = '';screen.value = '';replies.value = [];replyContent.value = '';++generation; rows.value = []; mine.value = []; exchanges.value = []; screen.value = ''; tab.value = 'public'; filter.value = '全部'; error.value = ''; load(); }, { flush: 'sync' });
 onMounted(load);

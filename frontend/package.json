@@ -1,6 +1,6 @@
 {
   "name": "shuyang-home-web",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "private": true,
   "description": "沭阳之家会员系统 · 乡情相聚，守望相助",
   "license": "MIT",
@@ -9,7 +9,7 @@
     "prebuild:demo": "node ../scripts/clean-build.cjs demo",
     "dev": "vite",
     "typecheck": "vue-tsc --noEmit",
-    "test:regression": "node ../scripts/test-request-scopes.cjs && node ../scripts/test-weather.cjs && node ../scripts/test-audit-regressions.cjs && node ../scripts/test-media-api.cjs && node ../scripts/test-life-shop-reliability.cjs && node ../scripts/test-chat-media-lifecycle.cjs && node ../scripts/test-client-errors.cjs && node ../scripts/test-chat-preview.cjs && node ../scripts/test-forum-people-lifecycle.cjs && npm run test:mobile && node ../scripts/test-photo-uploads.cjs && npm run test:modules && npm run test:stickers && npm run test:files && npm run test:work && npm run test:broadcast && npm run test:appearance && npm run test:ai && npm run test:member-card && npm run test:life && npm run test:people && npm run test:railway",
+    "test:regression": "node ../scripts/test-checkin-lifecycle.cjs && node ../scripts/test-scanner-lifecycle.cjs && node ../scripts/test-community-actions.cjs && node ../scripts/test-request-scopes.cjs && node ../scripts/test-weather.cjs && node ../scripts/test-audit-regressions.cjs && node ../scripts/test-media-api.cjs && node ../scripts/test-life-shop-reliability.cjs && node ../scripts/test-chat-media-lifecycle.cjs && node ../scripts/test-client-errors.cjs && node ../scripts/test-chat-preview.cjs && node ../scripts/test-forum-people-lifecycle.cjs && npm run test:mobile && node ../scripts/test-photo-uploads.cjs && npm run test:modules && npm run test:stickers && npm run test:files && npm run test:work && npm run test:broadcast && npm run test:appearance && npm run test:ai && npm run test:member-card && npm run test:life && npm run test:people && npm run test:railway",
     "test:member-card": "node ../scripts/test-member-card.cjs",
     "test:ai": "node ../scripts/test-ai-assistant.cjs",
     "test:appearance": "node ../scripts/test-appearance-camera.cjs",

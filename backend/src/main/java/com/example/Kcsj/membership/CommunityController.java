@@ -134,10 +134,10 @@ public class CommunityController {
     @PostMapping("/resources/{id}/requests") public Map<String,Object> requestExchange(@PathVariable String id,@RequestBody Map<String,Object> input,HttpServletRequest req) {
         store.lockWrites();Map<String,Object> actor=approvedMember(req),resource=store.get("resource",id);
         if(owner(resource,actor))throw new ApiException(400,"不能向自己的资源发起交换");
-        if(!s(resource,"status").equals("approved")||!s(resource,"availability").equals("available"))throw new ApiException(409,"资源当前不可申请交换");
         Map<String,Object> target=store.get("user",s(resource,"authorId"));if(!b(target,"enabled"))throw new ApiException(409,"资源发布者暂时无法回应");
         String message=text(input,"message",5,1000),contact=text(input,"contact",2,80);
         for(Map<String,Object> row:store.all("exchange"))if(s(row,"resourceId").equals(id)&&s(row,"requesterId").equals(s(actor,"id"))&&Arrays.asList("pending","accepted").contains(s(row,"status")))return ApiResponse.ok(row);
+        if(!s(resource,"status").equals("approved")||!s(resource,"availability").equals("available"))throw new ApiException(409,"资源当前不可申请交换");
         auth.limit("exchange:"+s(actor,"id"),20);
         Map<String,Object> exchange=map("id",id(),"resourceId",id,"resourceTitle",s(resource,"title"),"ownerId",s(resource,"authorId"),"ownerName",s(resource,"authorName"),
             "requesterId",s(actor,"id"),"requesterName",s(actor,"name"),"message",message,"contact",contact,"ownerContact",s(resource,"contact"),"status","pending","ownerConfirmed",false,"requesterConfirmed",false,"createdAt",now());

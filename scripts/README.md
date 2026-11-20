@@ -22,7 +22,7 @@
 
 `node scripts/test-request-scopes.cjs` 使用已有前端依赖运行5个异步响应场景。
 
-在 `frontend` 运行 `npm run test:regression` 执行完整逻辑回归（v2.0.3 共414项），覆盖业务状态、天气、移动环境、照片队列、模块交互、聊天表情、附件错误和身份隔离等。`npm run test:mobile`、`npm run test:modules` 和 `npm run test:stickers` 可分别运行对应测试，无需启动服务。
+在 `frontend` 运行 `npm run test:regression` 执行完整逻辑回归（v2.0.4 共496项），覆盖业务状态、天气、移动环境、照片队列、模块交互、聊天表情、附件错误和身份隔离等。`npm run test:mobile`、`npm run test:modules` 和 `npm run test:stickers` 可分别运行对应测试，无需启动服务。
 
 ## v1.4.0 聊天表情包回归
 
@@ -169,3 +169,13 @@ v2.0.1 起 `check-deployment.py` 默认读取包目录或源码根目录的 VERS
 后端 `ForumChatBoundaryTests` 新增4项真实HTTP测试，覆盖引用楼层与双向拉黑、隐藏及禁言、群聊退出和附件会话归属、私聊拉黑后消息与附件边界。完整 `clean verify` 为218项；`test-demo-runtime.mjs` 为28项，演示楼层引用规则与后端一致。
 
 构建H5后运行 `node scripts/test-chat-preview-browser.cjs`，5项实际页面流程验证390px登录、聊天图片解码、全屏预览，以及通过正常轮询撤回图片。使用虚拟会员、临时HTTP服务和程序生成PNG；支持 `SHUYANG_CHROMIUM_PATH`。截图和JSON在被忽略的 `output/chat-preview-browser`，无需真实数据库或微信账号。H5真实浏览器结果不能代替小程序真机验收。
+
+## v2.0.4 签到、扫码与重复操作
+
+前端完整回归为496项，新增 `test-checkin-lifecycle.cjs` 19项、`test-scanner-lifecycle.cjs` 15项和 `test-community-actions.cjs` 48项。覆盖活动选择／定位／二维码绘制的过期结果、扫码图片与相机竞争、六个业务组件的旧表单结果、完整提交锁以及移动端一次性确认。脚本直接加载实际组件或共享逻辑；未提交修复时可用 `--baseline` 读取HEAD源码验证原缺陷，提交后HEAD已经包含修复，不能再作为旧代码基线。
+
+后端 `SupportExchangeBoundaryTests` 新增5项，检查众筹核实／取消重试、并发认领额度、已接受的资源申请重试和终态权限。完整 `clean verify` 为223项。
+
+设置JDK、Nginx、OpenSSL及Chromium后运行 `python scripts/test-production-proxy.py`。在既有生产页面流程之后，它会创建独立测试会话，调用 `test-checkin-browser.cjs`，通过真实Web表单配置签到并生成二维码，在390px H5页面选择二维码图片、测试坏图和异常配置重试，最后用浏览器模拟坐标签到并独立读取服务端记录。只允许连接脚本创建的本机HTTPS环境；二维码、账号和活动均为合成测试数据，结果及截图存于`output/checkin-browser`。这项验收使用打包后的H5，因此能够捕获开发模式和逻辑模拟不能发现的动态依赖导入故障。
+
+`npm --prefix frontend/mobile run build:h5` 在构建后自动执行 `test-h5-imports.cjs`，解析实际输出的静态／动态导入，要求全部使用明确的相对路径并指向存在的构建文件；CI同样执行此检查。单独复核已有产物可运行 `node scripts/test-h5-imports.cjs`。

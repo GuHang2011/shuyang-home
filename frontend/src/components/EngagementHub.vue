@@ -12,23 +12,29 @@ const staff = computed(() => props.user && ['superadmin', 'admin', 'organizer'].
 const currentRows = computed(() => tab.value === 'mine' ? mine.value : tab.value === 'manage' ? managed.value : rows.value);
 let generation = 0, detailGeneration = 0;
 const scope = useRequestScope();
+watch([modal, form, tab, () => selected.value.id], () => { ++detailGeneration; }, { flush: 'sync' });
 onUnmounted(() => { ++generation; });
 async function load() {
-  const version = ++generation;loading.value = true;error.value = '';
+  const version = ++generation, viewVersion = detailGeneration;loading.value = true;error.value = '';
   try {
     if (props.mode !== 'activities') { const data = await api(props.mode === 'ads' ? '/ads' : '/polls');if (version !== generation) return;rows.value = data; }
     if (props.user && props.mode !== 'polls') { const data = await api(props.mode === 'ads' ? '/my/ads' : '/my/event-proposals');if (version !== generation) return;mine.value = data; }
     if (staff.value && props.mode !== 'polls') { const data = await api(props.mode === 'ads' ? '/admin/ads' : '/admin/event-proposals');if (version !== generation) return;managed.value = data; }
-  } catch (e) { if (version === generation) error.value = (e as Error).message; } finally { if (version === generation) loading.value = false; }
+  } catch (e) { if (version === generation && viewVersion === detailGeneration) error.value = (e as Error).message; } finally { if (version === generation) loading.value = false; }
 }
 function member() { if (!props.user || props.user.status !== 'approved') { emit('join');return false; }return true; }
-async function open(kind: string, data: Row = {}) { const current = scope.capture();const detailVersion = ++detailGeneration; form.value = { ...data };modal.value = kind;error.value = '';await nextTick();if (!current() || detailVersion !== detailGeneration) return;if (!dialog.value?.open) dialog.value?.showModal(); }
+async function open(kind: string, data: Row = {}) { const current = scope.capture(); form.value = { ...data };modal.value = kind;error.value = '';const detailVersion = ++detailGeneration;await nextTick();if (!current() || detailVersion !== detailGeneration) return;if (!dialog.value?.open) dialog.value?.showModal(); }
 function close() { if (busy.value) return;++detailGeneration;dialog.value?.close();modal.value = ''; }
 function create() { if (!member()) return;const dates = { startsAt: localDateInput(), endsAt: localDateInput(new Date(Date.now() + 7 * 86400000)) };open(props.mode === 'ads' ? 'ad' : 'poll', props.mode === 'ads' ? { title: '', sponsor: '', content: '', placement: 'home', url: '', contact: '', consent: false, ...dates } : { title: '', description: '', optionsText: '', maxChoices: 1, ...dates }); }
 async function act(action: () => Promise<any>, text: string, keep = false) {
-  if (busy.value) return;const current = scope.capture(), id = selected.value.id;busy.value = true;error.value = '';
-  try { await action();if (!current()) return;busy.value = false;if (!keep) close();message.value = text;await load();if (current()) emit('updated'); }
-  catch(e) { if (current()) error.value = (e as Error).message; }finally { if (current()) busy.value = false; }
+  if (busy.value) return;const current = scope.capture(), id = selected.value.id, viewVersion = detailGeneration;busy.value = true;error.value = '';
+  const sameView = () => current() && viewVersion === detailGeneration;
+  try {
+    await action();if (!sameView()) return;
+    await load();if (!sameView()) return;
+    if (!keep) { busy.value = false;close(); }message.value = text;
+    if (current()) emit('updated');
+  } catch(e) { if (sameView()) error.value = (e as Error).message; }finally { if (current()) busy.value = false; }
 }
 function save() { act(() => api(props.mode === 'ads' ? '/ads' : '/polls', 'POST', { ...form.value, startsAt: fromLocalInput(form.value.startsAt), endsAt: fromLocalInput(form.value.endsAt), ...(props.mode === 'polls' ? { options: form.value.optionsText.split('\n').map((v: string) => v.trim()).filter(Boolean), maxChoices: Number(form.value.maxChoices) } : {}) }), props.mode === 'ads' ? '广告申请已提交审核' : '投票已发布'); }
 function detail(row: Row) { selected.value = row;choices.value = [...(row.myChoices || [])];open(props.mode === 'polls' ? 'vote' : 'detail'); }
