@@ -141,10 +141,10 @@ public class MemberController {
     }
     @PostMapping("/events/{id}/signup") public Map<String,Object> signup(@PathVariable String id,HttpServletRequest req) {
         store.lockWrites();Map<String,Object> actor=auth.require(req);auth.member(actor);Map<String,Object> event=store.get("event",id);
-        if(!s(event,"status").equals("published")||!instant(event,"startsAt").isAfter(Instant.now())) throw new ApiException(409,"活动已开始或已关闭报名");
         String signupId=id+":"+s(actor,"id");List<Map<String,Object>> rows=registrations(id);
         Optional<Map<String,Object>> existing=rows.stream().filter(x->s(x,"id").equals(signupId)).findFirst();
         if(existing.isPresent()) return ApiResponse.ok(existing.get());
+        if(!s(event,"status").equals("published")||!instant(event,"startsAt").isAfter(Instant.now())) throw new ApiException(409,"活动已开始或已关闭报名");
         if(rows.size()>=number(event,"capacity",1,10000)) throw new ApiException(409,"本次活动名额已满");
         Map<String,Object> signup=map("id",signupId,"eventId",id,"userId",s(actor,"id"),"status","registered","hours",0,"createdAt",now());
         store.save("signup",signup);auth.audit(actor,"event.signup",id);return ApiResponse.ok(signup);

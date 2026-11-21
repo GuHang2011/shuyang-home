@@ -9,7 +9,8 @@ export function useCheckin(getUser: () => Row | null, api: (path: string, method
   const staff = computed(() => allowed() && ['superadmin','admin','organizer'].includes(getUser()?.role || ''));
   const mine = computed(() => signups.value.filter(s => s.status !== 'cancelled'));
   const signup = computed(() => signups.value.find(s => s.eventId === selected.value?.id));
-  function resetSelection() { ++selectionVersion.value;loadingSettings.value = false;busy.value = false;settings.value = {};code.value = '';error.value = '';message.value = ''; }
+  function cancelPending() { ++selectionVersion.value;loadingSettings.value = false;busy.value = false; }
+  function resetSelection() { cancelPending();settings.value = {};code.value = '';error.value = '';message.value = ''; }
   function captureSelection() { const version = selectionVersion.value, valid = scope.capture();return () => valid() && version === selectionVersion.value; }
   watch(selected, resetSelection, { flush: 'sync' });
   async function load() { const version = ++generation, current = scope.capture();if (!allowed()) return;error.value = '';try { const [nextEvents,nextSignups] = await Promise.all([api('/events'),api('/my/signups')]);if ((version !== generation || !current())) return;events.value = nextEvents;signups.value = nextSignups; } catch(e) { if ((version === generation && current())) error.value = (e as Error).message; } }
@@ -29,5 +30,5 @@ export function useCheckin(getUser: () => Row | null, api: (path: string, method
   }
   async function checkin() { if (!allowed() || !selected.value || busy.value) return;const eventId = selected.value.id, token = code.value, current = captureSelection();busy.value = true;error.value = '';message.value = '';try { const position = await locate();if (!current()) return;await api('/events/' + eventId + '/self-check-in','POST',{ ...position, code: token });if (!current()) return;await load();if (!current()) return;message.value = '地点签到成功，欢迎来相聚。志愿时长由组织者另行核定。'; } catch(e) { if (current()) error.value = (e as Error).message; } finally { if (current()) busy.value = false; } }
   watch([() => getUser()?.id, () => getUser()?.role, () => getUser()?.status, () => getUser()?.enabled], () => { scope.invalidate();resetSelection();generation++;events.value = [];signups.value = [];selected.value = null;load(); }, { flush: 'sync' });onMounted(load);
-  return { events, mine, signup, selected, settings, error, message, busy, staff, load, select, scanned, checkin, captureSelection, selectionVersion, loadingSettings };
+  return { events, mine, signup, selected, settings, error, message, busy, staff, load, select, scanned, checkin, cancelPending, captureSelection, selectionVersion, loadingSettings };
 }

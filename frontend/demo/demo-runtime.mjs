@@ -25,6 +25,21 @@ function railwayMetadata(body) {
 }
 /** Add this release's samples once without replacing existing records or photos. */
 export function upgradeDemoState(state) {
+  if (state.eventSignupVersion !== 1) {
+    // Previous releases appended a new row each time a member rejoined an event.
+    const latest = new Map();
+    for (const row of state.signups || []) {
+      const key = JSON.stringify([row.eventId, row.userId]);
+      const previous = latest.get(key);
+      if (!previous || previous.status === 'cancelled' || row.status !== 'cancelled') latest.set(key, row);
+    }
+    state.signups = [...latest.values()];
+    const cancelledEvents = new Set((state.events || []).filter(event => event.status === 'cancelled').map(event => event.id));
+    for (const row of state.signups) {
+      if (row.status === 'registered' && cancelledEvents.has(row.eventId)) row.status = 'cancelled';
+    }
+    state.eventSignupVersion = 1;
+  }
   const floors = new Map();
   for (const reply of state.replies || []) {
     const floor = (floors.get(reply.topicId) || 0) + 1;floors.set(reply.topicId, floor);
@@ -102,7 +117,15 @@ export async function demoRequest(state, request) {
     if (manage) { admin();state.users.filter(u => u.status === 'pending').forEach(u => add(u, 'user', '入会申请', u.name + '的入会申请', '待审核', 'action')); }
     (manage ? state.topics : mine(state.topics)).filter(t => !manage || t.status === 'pending').forEach(t => add(t, 'forum_topic', '论坛主题', t.title, t.status === 'pending' ? '待审核' : '已处理', t.status === 'pending' ? (manage ? 'action' : 'waiting') : 'done'));
     (manage ? state.orders : mine(state.orders)).filter(o => !manage || o.status === 'pending').forEach(o => add(o, 'order', '特产订单', o.productTitle, o.status === 'pending' ? '待确认' : o.status === 'cancelled' ? '已取消' : '已处理', o.status === 'pending' ? (manage ? 'action' : 'waiting') : 'done'));
-    if (!manage) mine(state.signups).forEach(s => add(s, 'signup', '活动报名', pick(state.events, s.eventId).title, s.status === 'registered' ? '已报名' : '已取消', s.status === 'registered' ? 'upcoming' : 'done'));
+    if (!manage) for (const signup of mine(state.signups)) {
+      const event = pick(state.events, signup.eventId);
+      const ended = Date.parse(event.endsAt) <= Date.now();
+      let label = '已报名';
+      if (signup.status === 'checked_in') label = '已签到';
+      else if (signup.status === 'cancelled' || event.status === 'cancelled') label = '已取消';
+      else if (ended) label = '活动已结束';
+      add(signup, 'signup', '活动报名', event.title, label, label === '已报名' ? 'upcoming' : 'done');
+    }
     return rows;
   };
   const body = read || path === '/media/upload' ? {} : await request.json().catch(() => ({}));
@@ -156,17 +179,54 @@ export async function demoRequest(state, request) {
   if (path === '/admin/audit') { admin();return state.audit; }
   let match;
   if ((match = path.match(/^\/admin\/members\/([^/]+)\/review$/)) && !read) { admin();const row = pick(state.users, match[1]);row.status = body.status;row.note = body.note || '';return row; }
-  if (path === '/events' && read) return state.events.filter(e => e.status === 'published' || actor?.role === 'superadmin').map(eventView);
-  if ((path === '/events' || /^\/events\/[^/]+$/.test(path)) && !read) { admin();const row = path === '/events' ? { id: id('event'), createdAt: now() } : pick(state.events, path.split('/')[2]);Object.assign(row, body);if (path === '/events') state.events.push(row);return eventView(row); }
-  if ((match = path.match(/^\/events\/([^/]+)$/)) && read) return eventView(pick(state.events, match[1]));
+  if (path === '/events' && read) return state.events.filter(e => e.status !== 'draft' || actor?.role === 'superadmin').map(eventView);
+  if ((path === '/events' || /^\/events\/[^/]+$/.test(path)) && !read) {
+    admin();
+    const create = path === '/events';
+    const row = create ? { id: id('event'), createdAt: now() } : pick(state.events, path.split('/')[2]);
+    const active = state.signups.filter(s => s.eventId === row.id && s.status !== 'cancelled');
+    if (body.capacity !== undefined && Number(body.capacity) < active.length) fail('人数上限不能少于已报名人数');
+    if (active.length && (body.status === 'draft' || ['startsAt','endsAt'].some(key => key in body && Date.parse(body[key]) !== Date.parse(row[key])) || ('category' in body && body.category !== row.category))) {
+      fail('已有报名的活动不能修改时间、类型或转为草稿');
+    }
+    if (body.status === 'cancelled' && active.some(s => s.status === 'checked_in')) fail('已有签到记录的活动不能取消');
+    Object.assign(row, body, { id: row.id });
+    if (create) state.events.push(row);
+    if (row.status === 'cancelled') for (const signup of active) signup.status = 'cancelled';
+    return eventView(row);
+  }
+  if ((match = path.match(/^\/events\/([^/]+)$/)) && read) {
+    const event = pick(state.events, match[1]);
+    if (event.status === 'draft') admin();
+    return eventView(event);
+  }
   if ((match = path.match(/^\/events\/([^/]+)\/(signup|cancel-signup|participants)$/))) {
-    const event = pick(state.events, match[1]);member();const existing = state.signups.find(s => s.eventId === event.id && s.userId === actor.id && s.status !== 'cancelled');
-    if (match[2] === 'participants') { admin();return state.signups.filter(s => s.eventId === event.id).map(s => ({ ...s, member: pick(state.users, s.userId), name: pick(state.users, s.userId).name, phone: pick(state.users, s.userId).phone })); }
-    if (read) fail('请使用页面按钮完成此操作');
-    if (match[2] === 'cancel-signup') { if (existing) existing.status = 'cancelled';return {}; }
-    if (existing) return existing;
+    const event = pick(state.events, match[1]);
+    member();
+    const existing = state.signups.find(s => s.eventId === event.id && s.userId === actor.id);
+    if (match[2] === 'participants') {
+      admin();
+      return state.signups.filter(s => s.eventId === event.id && s.status !== 'cancelled').map(s => {
+        const user = pick(state.users, s.userId);
+        return { ...s, name: user.name, phone: user.phone };
+      });
+    }
+    if (method !== 'POST') fail('请使用页面按钮完成此操作');
+    const started = Date.parse(event.startsAt) <= Date.now();
+    if (match[2] === 'cancel-signup') {
+      if (!existing) fail('未找到这次活动报名');
+      if (existing.status === 'cancelled') return existing;
+      if (started || existing.status === 'checked_in') fail('已签到或已开始的活动无法取消报名，请联系组织者');
+      existing.status = 'cancelled';
+      return existing;
+    }
+    if (existing && existing.status !== 'cancelled') return existing;
+    if (event.status !== 'published' || started) fail('活动已开始或已关闭报名');
     if (eventView(event).registered >= event.capacity) fail('活动已满员');
-    const row = { id: id('signup'), eventId: event.id, userId: actor.id, status: 'registered', hours: 0, createdAt: now() };state.signups.push(row);return row;
+    const row = { id: existing?.id || id('signup'), eventId: event.id, userId: actor.id, status: 'registered', hours: 0, createdAt: now() };
+    if (existing) state.signups[state.signups.indexOf(existing)] = row;
+    else state.signups.push(row);
+    return row;
   }
   if (path === '/my/signups') return mine(state.signups).map(row => ({ ...row, event: eventView(pick(state.events, row.eventId)) }));
   if (['/posts', '/my/posts', '/admin/posts'].includes(path) && read) return path === '/my/posts' ? mine(state.posts) : path === '/admin/posts' ? (admin(), state.posts) : state.posts.filter(p => p.status === 'approved');
@@ -290,7 +350,10 @@ export async function demoRequest(state, request) {
     if (manage && kind === 'user') actions.push({ label: '通过入会申请', url: '/admin/members/' + key + '/review', body: { status: 'approved' } });
     if (manage && kind === 'forum_topic') actions.push({ label: '审核通过', url: '/forum/topics/' + key + '/review', body: { status: 'approved' } });
     if (manage && kind === 'order') actions.push({ label: '确认演示订单', url: '/orders/' + key + '/action', body: { action: 'confirm' } });
-    if (!manage && kind === 'signup' && item.section === 'upcoming') actions.push({ label: '取消报名', url: '/events/' + pick(state.signups, key).eventId + '/cancel-signup', body: {} });
+    if (!manage && kind === 'signup' && item.section === 'upcoming') {
+      const event = pick(state.events, pick(state.signups, key).eventId);
+      if (event.status === 'published' && Date.parse(event.startsAt) > Date.now()) actions.push({ label: '取消报名', url: '/events/' + event.id + '/cancel-signup', body: {} });
+    }
     return { ...item, fields: [{ label: '当前状态', value: item.state }, { label: '演示说明', value: '此记录仅保存在当前浏览器。' }], actions, ...(kind === 'forum_topic' ? { navigate: 'forum' } : {}) };
   }
   if (path === '/work/notices') return { items: [], total: 0, page: 1, pages: 1, counts: {}, through: 0 };

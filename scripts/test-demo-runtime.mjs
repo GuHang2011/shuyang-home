@@ -106,6 +106,63 @@ test('signup is idempotent and can be cancelled', async () => {
   assert.equal(state.signups.length, 1);assert.equal((await call(state, '/events'))[0].registered, 1);
   await call(state, '/events/demo-event/cancel-signup', 'POST');assert.equal((await call(state, '/events'))[0].registered, 0);
 });
+test('rejoining reuses a cancelled signup and the roster contains only current participants', async () => {
+  const state = createDemoState(), base = '/events/demo-event', first = await call(state, base + '/signup', 'POST');
+  await call(state, base + '/cancel-signup', 'POST');
+  assert.deepEqual(await call(state, base + '/participants', 'GET', undefined, 'demo-admin'), []);
+  const next = await call(state, base + '/signup', 'POST');
+  assert.equal(next.id, first.id);
+  assert.equal((await call(state, '/my/signups')).length, 1);
+  assert.equal((await call(state, base + '/participants', 'GET', undefined, 'demo-admin')).length, 1);
+});
+test('earlier demo records with duplicate signups keep the active record and unrelated signups', () => {
+  const state = createDemoState();
+  delete state.eventSignupVersion;
+  const signup = {eventId: 'demo-event', userId: 'demo-member', status: 'cancelled'};
+  state.signups = [
+    {...signup, id: 'old'}, {...signup, id: 'member-two', userId: 'demo-admin'},
+    {...signup, id: 'current', status: 'checked_in', hours: 2},
+    {...signup, id: 'old-last'}, {...signup, id: 'older-other', eventId: 'second'},
+    {...signup, id: 'latest-other', eventId: 'second'}
+  ];
+  upgradeDemoState(state);
+  assert.deepEqual(state.signups.map(row => row.id).sort(), ['current', 'latest-other', 'member-two']);
+  assert.equal(state.signups.find(row => row.id === 'current').hours, 2);
+  const snapshot = structuredClone(state);
+  upgradeDemoState(state);
+  assert.deepEqual(state, snapshot);
+});
+test('an existing registration can be replayed after start, while new signups and cancellations are closed', async () => {
+  const state = createDemoState(), base = '/events/demo-event', signup = await call(state, base + '/signup', 'POST');
+  state.events[0].startsAt = new Date(Date.now() - 1000).toISOString();
+  assert.equal((await call(state, base + '/signup', 'POST')).id, signup.id);
+  await assert.rejects(call(state, base + '/signup', 'POST', undefined, 'demo-admin'), /已开始|关闭/);
+  await assert.rejects(call(state, base + '/cancel-signup', 'POST'), /无法取消/);
+  const target = await call(state, '/work/target?kind=signup&id=' + signup.id);
+  assert.deepEqual(target.actions, []);
+  assert.equal(state.signups.length, 1);
+  assert.equal(state.signups[0].status, 'registered');
+});
+test('cancelling an event clears its active roster and preserves the member history', async () => {
+  const state = createDemoState(), base = '/events/demo-event';
+  await call(state, base + '/signup', 'POST');
+  await call(state, base, 'PUT', {status: 'cancelled'}, 'demo-admin');
+  assert.equal((await call(state, base)).registered, 0);
+  assert.equal((await call(state, '/my/signups'))[0].status, 'cancelled');
+  assert.equal((await call(state, '/events')).find(row => row.id === 'demo-event').status, 'cancelled');
+  await assert.rejects(call(state, base + '/signup', 'POST'), /关闭/);
+});
+test('checked-in attendance survives individual and whole-event cancellation and displays its actual status', async () => {
+  const state = createDemoState(), base = '/events/demo-event', row = await call(state, base + '/signup', 'POST');
+  row.status = 'checked_in';
+  await assert.rejects(call(state, base + '/cancel-signup', 'POST'), /已签到/);
+  await assert.rejects(call(state, base, 'PUT', {status: 'cancelled'}, 'demo-admin'), /签到记录/);
+  const target = await call(state, '/work/target?kind=signup&id=' + row.id);
+  assert.equal(target.state, '已签到');
+  assert.deepEqual(target.actions, []);
+  assert.equal(state.events[0].status, 'published');
+  assert.equal(row.status, 'checked_in');
+});
 test('photo post stays pending until demo administrator reviews it', async () => {
   const state = createDemoState(), row = await call(state, '/forum/topics', 'POST', { title: '演示主题', category: '乡情闲聊', content: '这是一条演示主题内容。', photoIds: [] });
   assert.equal(row.status, 'pending');assert.ok(!(await call(state, '/forum/topics')).some(t => t.id === row.id));

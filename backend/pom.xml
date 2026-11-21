@@ -8,7 +8,7 @@
     <relativePath/>
   </parent>
   <groupId>com.example</groupId>
-  <artifactId>shuyang-home</artifactId><version>2.0.4</version>
+  <artifactId>shuyang-home</artifactId><version>2.0.5</version>
   <name>Shuyang Home</name>
   <description>沭阳之家会员系统</description>
   <properties>

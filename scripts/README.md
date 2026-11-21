@@ -22,7 +22,7 @@
 
 `node scripts/test-request-scopes.cjs` 使用已有前端依赖运行5个异步响应场景。
 
-在 `frontend` 运行 `npm run test:regression` 执行完整逻辑回归（v2.0.4 共496项），覆盖业务状态、天气、移动环境、照片队列、模块交互、聊天表情、附件错误和身份隔离等。`npm run test:mobile`、`npm run test:modules` 和 `npm run test:stickers` 可分别运行对应测试，无需启动服务。
+在 `frontend` 运行 `npm run test:regression` 执行完整逻辑回归（v2.0.5 共554项），覆盖业务状态、天气、移动环境、照片队列、模块交互、聊天表情、附件错误和身份隔离等。`npm run test:mobile`、`npm run test:modules` 和 `npm run test:stickers` 可分别运行对应测试，无需启动服务。
 
 ## v1.4.0 聊天表情包回归
 
@@ -179,3 +179,9 @@ v2.0.1 起 `check-deployment.py` 默认读取包目录或源码根目录的 VERS
 设置JDK、Nginx、OpenSSL及Chromium后运行 `python scripts/test-production-proxy.py`。在既有生产页面流程之后，它会创建独立测试会话，调用 `test-checkin-browser.cjs`，通过真实Web表单配置签到并生成二维码，在390px H5页面选择二维码图片、测试坏图和异常配置重试，最后用浏览器模拟坐标签到并独立读取服务端记录。只允许连接脚本创建的本机HTTPS环境；二维码、账号和活动均为合成测试数据，结果及截图存于`output/checkin-browser`。这项验收使用打包后的H5，因此能够捕获开发模式和逻辑模拟不能发现的动态依赖导入故障。
 
 `npm --prefix frontend/mobile run build:h5` 在构建后自动执行 `test-h5-imports.cjs`，解析实际输出的静态／动态导入，要求全部使用明确的相对路径并指向存在的构建文件；CI同样执行此检查。单独复核已有产物可运行 `node scripts/test-h5-imports.cjs`。
+
+## v2.0.5 活动报名与手机签到
+
+前端统一回归新增 `test-event-discovery-lifecycle.cjs` 的22项活动时钟与详情刷新测试，以及 `test-native-checkin.cjs` 的36项微信扫码和H5确认测试。后端 `ActivitySignupBoundaryTests` 覆盖报名重试、取消和已核定记录。演示数据回归 `test-demo-runtime.mjs` 包含旧缓存升级与报名状态。`test-demo-browser.cjs` 通过真实编辑表单修改及取消已有报名的活动。
+
+构建 Web 和 H5 后运行 `node scripts/test-event-discovery-browser.cjs` 检查桌面与手机活动页面。脚本使用临时本地服务和合成活动，支持 `SHUYANG_CHROMIUM_PATH`，结果写入 `output/event-discovery-browser`。问题清单及验收边界见[本轮记录](../docs/活动报名与手机签到复查-v2.0.5.md)。

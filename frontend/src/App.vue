@@ -4,7 +4,7 @@ import MemberCardQr from './components/MemberCardQr.vue';
 import AppearancePicker from './components/AppearancePicker.vue';
 import { useWebAppearance } from './useWebAppearance';
 const appearance = useWebAppearance();
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import GalleryHub from './components/GalleryHub.vue';
 import WorkHub from './components/WorkHub.vue';
 import BroadcastBanner from './components/BroadcastBanner.vue';
@@ -36,7 +36,7 @@ import EngagementHub from './components/EngagementHub.vue';
 import AdPlacements from './components/AdPlacements.vue';
 import { forumEnabled } from '../shared/features';
 import { api, getToken, setToken } from './api';
-import { type Row, eventCategories, postCategories, forumCategories, statusNames, roleNames, formatTime, eventState, canCancelSignup, signupLabel, newProfile, privacy, agreement } from '../shared/domain';
+import { type Row, eventCategories, postCategories, forumCategories, statusNames, roleNames, formatTime, localDateInput, fromLocalInput, newProfile, privacy, agreement } from '../shared/domain';
 
 const checkinTarget = ref<Row | null>(null);
 function beginCheckin(row: Row) { checkinTarget.value = row;close();go('checkin'); }
@@ -87,7 +87,22 @@ const nav = computed(() => [
   ...(staff.value ? [{ id: 'admin', label: '管理工作台', icon: 'grid', group: '平台管理' }] : [])
 ]);
 const titles: Record<string, string> = { assistant: 'AI 助手', addressbook: '乡友通讯录', display: '乡情大屏', appearance: '界面主题', life: '生活服务', tasks: '我的事项', notifications: '业务通知', queue: '管理待办总览', gallery: '相聚相册', shop: '家乡特产', checkin: '到场签到与扫一扫', chat: '家里聊聊', crowdfunding: '爱心众筹', contacts: '联系方式交换', ads: '合作广告', polls: '会员投票', forum: '老乡论坛', resources: '资源互换', home: '乡情首页', events: '乡情活动', community: '互助广场', directory: '老乡名录', notices: '家乡公告', about: '关于沭阳之家', account: '会员中心', admin: '平台管理工作台' };
-const { eventView, eventViews, filteredEvents, upcoming } = useEventDiscovery(() => events.value, () => filter.value, () => search.value);
+const { eventView, eventViews, filteredEvents, upcoming, eventState, canCancelSignup, signupLabel, canSignup, refreshClock } = useEventDiscovery(() => events.value, () => filter.value, () => search.value);
+watch(events, rows => {
+  if (modal.value !== 'eventDetail') return;
+  const row = rows.find(item => item.id === form.value.id);
+  if (row) {
+    form.value = { ...row };
+    selected.value = row;
+    return;
+  }
+  ++screenGeneration;
+  dialog.value?.close();
+  modal.value = '';
+  selected.value = {};
+  form.value = {};
+  if (user.value) notify('该活动已撤下，请查看其他活动');
+}, { flush: 'sync' });
 const { rows: filteredPosts, progress: helpFilter, district: helpDistrict } = useHelpDiscovery(() => posts.value, () => filter.value, () => search.value);
 const filteredMembers = computed(() => members.value.filter(m => [m.name, m.hometown, m.district, m.industry].join(' ').includes(search.value)));
 const memberQuery = ref(''), memberStatus = ref('全部');
@@ -139,11 +154,30 @@ async function logout() { const current = scope.capture();await act(async () => 
 async function saveProfile() { const current = scope.capture();await act(async () => { const result = await api('/profile', 'PUT', { ...form.value, resubmit: user.value?.status === 'rejected' });if (current()) user.value = result; }, '资料已保存'); }
 async function changePassword() { const current = scope.capture();await act(async () => { const result = await api('/auth/password', 'POST', form.value);if (!current()) return;setToken(result.token);user.value = result.user; }, '密码已更新，其他登录会话已失效'); }
 function editProfile() { open('profile', { ...newProfile(), ...user.value }); }
-function editEvent(event?: Row) { if (!needMember()) return; open('event', event ? { ...event, startsAt: localTime(event.startsAt), endsAt: localTime(event.endsAt) } : { title: '', category: '乡情聚会', description: '', location: '苏州市木渎镇兵圣路200号', startsAt: '', endsAt: '', capacity: 30, status: 'published' }); }
-function localTime(value: string) { return new Date(new Date(value).getTime() + 8 * 3600000).toISOString().slice(0, 16); }
-async function saveEvent() { await act(() => api((staff.value ? '/events' : '/event-proposals') + (form.value.id ? '/' + form.value.id : ''), form.value.id ? 'PUT' : 'POST', { ...form.value, startsAt: new Date(form.value.startsAt + ':00+08:00').toISOString(), endsAt: new Date(form.value.endsAt + ':00+08:00').toISOString() }), staff.value ? '活动已保存' : '发起申请已提交审核'); proposalRevision.value++; }
+function editEvent(event?: Row) {
+  if (!needMember()) return;
+  open('event', event ? {
+    ...event, originalStart: event.startsAt, originalEnd: event.endsAt,
+    startsAt: localDateInput(new Date(event.startsAt)), endsAt: localDateInput(new Date(event.endsAt))
+  } : { title: '', category: '乡情聚会', description: '', location: '苏州市木渎镇兵圣路200号', startsAt: '', endsAt: '', capacity: 30, status: 'published' });
+}
+function eventTimestamp(input: string, original?: string) {
+  // The control displays minutes. Keep the stored precision when that minute was not edited.
+  if (original && localDateInput(new Date(original)) === input) return original;
+  return fromLocalInput(input);
+}
+async function saveEvent() {
+  await act(() => {
+    const { originalStart, originalEnd, ...draft } = form.value;
+    const path = (staff.value ? '/events' : '/event-proposals') + (draft.id ? '/' + draft.id : '');
+    return api(path, draft.id ? 'PUT' : 'POST', {
+      ...draft, startsAt: eventTimestamp(draft.startsAt, originalStart), endsAt: eventTimestamp(draft.endsAt, originalEnd)
+    });
+  }, staff.value ? '活动已保存' : '发起申请已提交审核');
+  proposalRevision.value++;
+}
 function detail(kind: string, row: Row) { selected.value = row; open(kind, row); }
-function signup(event: Row) { if (!needMember()) return; act(() => api('/events/' + event.id + '/signup', 'POST'), '报名成功，在“我的”查看参与记录'); }
+function signup(event: Row) { if (!needMember()) return;refreshClock();if (!canSignup(event)) { error.value = signupLabel(event);return; }act(() => api('/events/' + event.id + '/signup', 'POST'), '报名成功，在“我的”查看参与记录'); }
 async function showParticipants(event: Row) {
   const current = scope.capture();selected.value = event;participants.value = [];await open('participants');const version = screenGeneration;
   const valid = () => current() && version === screenGeneration && modal.value === 'participants' && selected.value.id === event.id;
@@ -213,11 +247,11 @@ onUnmounted(() => { disposed = true;++refreshGeneration;window.removeEventListen
     <nav class="mobile-nav" aria-label="手机导航"><button v-for="item in [{ id: 'home', label: '首页', icon: 'home' }, { id: 'events', label: '活动', icon: 'calendar' }, { id: 'community', label: '互助', icon: 'heart' }, { id: 'account', label: '我的', icon: 'user' }]" :key="item.id" :class="{ active: page === item.id }" @click="go(item.id)"><Icon :name="item.icon"/><span>{{ item.label }}</span></button><button :class="{ active: ['chat','notifications'].includes(page) }" @click="go('chat')"><Icon name="chat"/><span>消息 {{ (unread + (workSummary?.unread || 0)) || '' }}</span></button></nav>
     <div v-if="message" class="toast" role="status"><Icon name="check"/>{{ message }}</div>
 
-    <dialog ref="dialog" class="modal" :class="{ 'element-dialog': ['login', 'register', 'profile'].includes(modal) }" aria-labelledby="dialog-title" @cancel.prevent="close" @click="($event.target === dialog) && close()"><div class="modal-inner"><header><div><h2 id="dialog-title">{{ dialogTitle }}</h2></div><button class="close-button" aria-label="关闭弹窗" :disabled="busy" @click="close">×</button></header><p v-if="error" class="form-error" role="alert">{{ error }}</p>
+    <dialog ref="dialog" class="modal" :class="{ 'element-dialog': ['login', 'register', 'profile'].includes(modal) }" aria-labelledby="dialog-title" @cancel.prevent="close" @click="($event.target === dialog) && close()"><div class="modal-inner"><header><div><h2 id="dialog-title">{{ dialogTitle }}</h2></div><button class="close-button" aria-label="关闭弹窗" :disabled="busy" @click="close">×</button></header><p v-if="error" class="form-error" role="alert">{{ error }}<button v-if="modal === 'eventDetail'" class="text-button" :disabled="busy || loading" @click="refresh">刷新活动</button></p>
       <AccountForm v-if="['login', 'register', 'profile'].includes(modal)" :key="modal" v-model="form" :mode="modal" :busy="busy" :rejected="user?.status === 'rejected'" @submit="modal === 'profile' ? saveProfile() : loginOrRegister()" @register="open('register', newProfile())"/>
       <form v-if="modal === 'password'" @submit.prevent="changePassword()"><p v-if="user?.mustChangePassword">为保护账号，请先修改管理员设置的初始密码。</p><label>原密码<input v-model="form.oldPassword" type="password" required autocomplete="current-password" maxlength="128"></label><label>新密码<input v-model="form.newPassword" type="password" required minlength="12" maxlength="128" autocomplete="new-password" placeholder="至少12位，包含字母和数字"></label><button class="primary full" :disabled="busy">更新密码</button></form>
       <form v-if="modal === 'event'" @submit.prevent="saveEvent"><label>活动名称<input v-model="form.title" required minlength="2" maxlength="80"></label><div class="form-grid"><label>活动类型<select v-model="form.category"><option v-for="category in eventCategories" :key="category">{{ category }}</option></select></label><label>人数上限<input v-model="form.capacity" type="number" min="1" max="10000" required></label><label>开始时间（北京时间）<input v-model="form.startsAt" type="datetime-local" required></label><label>结束时间（北京时间）<input v-model="form.endsAt" type="datetime-local" required></label></div><label>活动地点<input v-model="form.location" required minlength="2" maxlength="150"></label><label>活动详情<textarea v-model="form.description" required minlength="10" maxlength="5000" rows="5" placeholder="介绍活动安排、集合点与参与须知"></textarea></label><label v-if="staff">发布状态<select v-model="form.status"><option value="published">公开发布</option><option value="draft">保存草稿</option><option v-if="form.id" value="cancelled">取消活动</option></select></label><p class="form-tip">已有报名后不能修改时间与活动类型；取消活动会同步取消报名。</p><button class="primary full" :disabled="busy">{{ staff ? '保存活动' : '提交发起申请' }}</button></form>
-      <div v-if="modal === 'eventDetail'"><span class="tag">{{ form.category }} · {{ eventState(form) }}</span><h2>{{ form.title }}</h2><button v-if="form.mySignup || staff" class="outline" @click="beginCheckin(form)">地点签到／扫码</button><p class="meta"><Icon name="clock"/>{{ formatTime(form.startsAt) }} — {{ formatTime(form.endsAt) }}（北京时间）</p><p class="meta"><Icon name="pin"/>{{ form.location }}</p><p class="prose">{{ form.description }}</p><p>{{ form.registered }} / {{ form.capacity }} 人报名 · 自愿参与</p><button class="primary full" :disabled="busy || !!form.mySignup || eventState(form) !== '报名中'" @click="signup(form)">{{ signupLabel(form) }}</button></div>
+      <div v-if="modal === 'eventDetail'"><span class="tag">{{ form.category }} · {{ eventState(form) }}</span><h2>{{ form.title }}</h2><button v-if="form.mySignup || staff" class="outline" @click="beginCheckin(form)">地点签到／扫码</button><p class="meta"><Icon name="clock"/>{{ formatTime(form.startsAt) }} — {{ formatTime(form.endsAt) }}（北京时间）</p><p class="meta"><Icon name="pin"/>{{ form.location }}</p><p class="prose">{{ form.description }}</p><p>{{ form.registered }} / {{ form.capacity }} 人报名 · 自愿参与</p><button class="primary full" :disabled="busy || !canSignup(form)" @click="signup(form)">{{ signupLabel(form) }}</button></div>
       <form v-if="modal === 'post'" @submit.prevent="act(() => api('/posts', 'POST', form), '已提交审核，通过后将在互助广场展示')"><label>标题<input v-model="form.title" required minlength="2" maxlength="80"></label><label>分类<select v-model="form.category"><option v-for="category in postCategories" :key="category">{{ category }}</option></select></label><label>具体内容<textarea v-model="form.content" required minlength="10" maxlength="3000" rows="6" placeholder="清楚说明你的需求或可以提供的帮助，请勿在正文填写个人敏感信息"></textarea></label><label>所在片区<input v-model="form.district" maxlength="50" placeholder="无需详细住址"></label><label>信息有效期<select v-model="form.validDays"><option v-for="days in [7,30,90]" :key="days" :value="days">{{ days }}天</option></select></label><label>联系方式（选填）<input v-model="form.contact" maxlength="80" placeholder="审核通过的会员可见"></label><p class="form-tip">内容审核通过后公开展示，请勿发布未经核实的招聘、投资或收费信息。</p><button class="primary full" :disabled="busy">提交审核</button></form>
       <div v-if="modal === 'postDetail'"><span class="tag">{{ form.category }} · {{ helpProgress[form.progressState || 'open'] }}</span><p>{{ form.district }} <span v-if="form.expiresAt">· 有效期至 {{ formatTime(form.expiresAt) }}</span></p><p v-if="form.resolutionNote" class="status-note">{{ form.resolutionNote }}</p><button v-if="form.authorId === user?.id" class="outline" @click="showTask(form)">更新进度／修改信息</button><h2>{{ form.title }}</h2><p class="prose">{{ form.content }}</p><p>{{ form.authorName }} · {{ formatTime(form.createdAt) }}</p><div class="status-note">{{ form.contact ? '联系方式：' + form.contact : approved ? '发布者未填写联系方式' : '联系方式仅向已审核会员展示' }}</div></div>
       <form v-if="modal === 'notice'" @submit.prevent="act(() => api('/notices' + (form.id ? '/' + form.id : ''), form.id ? 'PUT' : 'POST', form), '公告已保存')"><label>标题<input v-model="form.title" required minlength="2" maxlength="80"></label><label>分类<select v-model="form.category"><option>平台公告</option><option>家乡文化</option><option>淮新高铁</option><option>一凡说高铁</option></select></label><label>内容<textarea v-model="form.content" required minlength="5" maxlength="5000" rows="8" :placeholder="['淮新高铁','一凡说高铁'].includes(form.category) ? '说明已确认的信息与原文出处；个人解读请与消息事实区分。' : '请输入公告内容'"></textarea></label><template v-if="['淮新高铁','一凡说高铁'].includes(form.category)"><div class="form-grid"><label>来源名称<input v-model="form.sourceName" :required="form.status === 'published'" maxlength="100" placeholder="发布机构或作者"></label><label>来源日期<input v-model="form.sourceDate" type="date" :required="form.status === 'published'"></label></div><label>原文链接<input v-model="form.sourceUrl" type="url" :required="form.category === '淮新高铁' && form.status === 'published'" maxlength="1000" placeholder="https://..."></label><p class="form-tip">专题资讯注明原文出处；“一凡说高铁”归入一凡解读栏目。</p></template><label>状态<select v-model="form.status"><option value="published">公开发布</option><option value="withdrawn">撤下</option></select></label><button class="primary full" :disabled="busy">保存公告</button></form>
