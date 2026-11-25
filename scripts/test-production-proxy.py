@@ -153,6 +153,10 @@ with tempfile.TemporaryDirectory(prefix='shuyang-proxy-') as temp:
                 (output / 'checkin-browser.log').write_text(checkin_browser.stdout + checkin_browser.stderr, encoding='utf-8')
                 print(checkin_browser.stdout, end='')
                 assert checkin_browser.returncode == 0, checkin_browser.stderr
+                shop_browser = subprocess.run(['node', str(root / 'scripts/test-shop-price-browser.cjs'), origin], env=browser_env, capture_output=True, text=True, encoding='utf-8', **flags)
+                (output / 'shop-price-browser.log').write_text(shop_browser.stdout + shop_browser.stderr, encoding='utf-8')
+                print(shop_browser.stdout, end='')
+                assert shop_browser.returncode == 0, shop_browser.stderr
             (output / 'result.json').write_text(json.dumps({'version': version, 'https': True, 'checks': 16, 'passed': True, 'compression': compression}), encoding='utf-8')
     finally:
         if proxy:

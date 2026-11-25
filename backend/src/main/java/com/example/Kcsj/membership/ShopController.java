@@ -29,8 +29,13 @@ public class ShopController {
         store.lockWrites();Map<String,Object> actor=auth.require(req);auth.member(actor);if(!flag(input,"consent"))throw new ApiException(400,"请确认下单与线下结算说明");String request=text(input,"requestId",36,36);try{UUID.fromString(request);}catch(Exception e){throw new ApiException(400,"订单请求编号无效");}
         String productId=text(input,"productId",1,80),method=choice(input,"delivery","shipping","pickup"),name=text(input,"name",2,30),phone=text(input,"phone",11,11),address=text(input,"address",method.equals("shipping")?5:0,300);if(!phone.matches("1[3-9][0-9]{9}"))throw new ApiException(400,"请填写有效手机号");int quantity=number(input,"quantity",1,99);String fingerprint=auth.digest(productId+"|"+quantity+"|"+method+"|"+name+"|"+phone+"|"+address),orderId=s(actor,"id")+":"+request;
         Optional<Map<String,Object>> previous=store.all("order").stream().filter(o->s(o,"id").equals(orderId)).findFirst();if(previous.isPresent()){if(!s(previous.get(),"fingerprint").equals(fingerprint))throw new ApiException(409,"同一请求不能用于不同订单");return ApiResponse.ok(previous.get());}
-        Map<String,Object> product=store.get("product",productId);if(!s(product,"status").equals("published"))throw new ApiException(409,"商品已下架");int stock=((Number)product.get("stock")).intValue();if(quantity>stock)throw new ApiException(409,"库存不足，请调整数量");auth.limit("shop-order:"+s(actor,"id"),20);
+        Map<String,Object> product=store.get("product",productId);if(!s(product,"status").equals("published"))throw new ApiException(409,"商品已下架");int stock=((Number)product.get("stock")).intValue();if(quantity>stock)throw new ApiException(409,"库存不足，请调整数量");
         int unit=((Number)product.get("priceCents")).intValue(),shipping=method.equals("shipping")?((Number)product.get("shippingCents")).intValue():0;
+        if(input.containsKey("expectedUnitCents")||input.containsKey("expectedShippingCents")){
+            int expectedUnit=number(input,"expectedUnitCents",1,10000000),expectedShipping=number(input,"expectedShippingCents",0,10000000);
+            if(expectedUnit!=unit||expectedShipping!=shipping)throw new ApiException(409,"商品价格或运费已变化，请刷新商品并确认金额后重新下单");
+        }
+        auth.limit("shop-order:"+s(actor,"id"),20);
         Map<String,Object> row=map("id",orderId,"orderNo","SY"+UUID.randomUUID().toString().replace("-","").substring(0,16).toUpperCase(Locale.ROOT),"buyerId",s(actor,"id"),"productId",productId,"title",s(product,"title"),"specification",s(product,"specification"),"seller",s(product,"seller"),"sellerContact",s(product,"sellerContact"),"afterSales",s(product,"afterSales"),"unitCents",unit,"quantity",quantity,"shippingCents",shipping,"totalCents",((long)unit)*quantity+shipping,"delivery",method,"name",name,"phone",phone,"address",address,"status","pending","settlement","unconfirmed","fingerprint",fingerprint,"createdAt",now());
         product.put("stock",stock-quantity);product.put("stockRevision",revision(product)+1);store.save("product",product);store.save("order",row);auth.audit(actor,"shop.order",orderId);return ApiResponse.ok(row);
     }
@@ -38,15 +43,30 @@ public class ShopController {
     @PostMapping("/orders/{id}/action") public Map<String,Object> action(@PathVariable String id,@RequestBody Map<String,Object> input,HttpServletRequest req){
         store.lockWrites();Map<String,Object> actor=auth.require(req),row=store.get("order",id);boolean admin=auth.isAdmin(actor),buyer=s(row,"buyerId").equals(s(actor,"id"));if(!admin&&!buyer)throw new ApiException(403,"只能处理本人的订单");String action=choice(input,"action","confirm","cancel","settle","refund","ship","ready","receive"),state=s(row,"status");
         if(action.equals("cancel")||action.equals("refund")){
-            if(state.equals("cancelled"))return ApiResponse.ok(row);if(!Arrays.asList("pending","confirmed").contains(state))throw new ApiException(409,"已进入履约流程，请联系卖家处理售后");
-            if(action.equals("refund")){if(!admin||!s(row,"settlement").equals("confirmed"))throw new ApiException(403,"仅管理员可登记已核实的线下退款");row.put("settlement","refunded");row.put("settlementNote",text(input,"note",5,300));}else if(s(row,"settlement").equals("confirmed"))throw new ApiException(409,"请先由管理员核实线下退款");
+            String refundNote="";
+            if(action.equals("refund")){
+                if(!admin)throw new ApiException(403,"仅管理员可登记已核实的线下退款");refundNote=text(input,"note",5,300);
+                if(state.equals("cancelled")){if(!s(row,"settlement").equals("refunded")||!s(row,"settlementNote").equals(refundNote))throw new ApiException(409,"订单已取消或退款记录不同，请刷新核对");return ApiResponse.ok(row);}
+            }else if(state.equals("cancelled"))return ApiResponse.ok(row);
+            if(!Arrays.asList("pending","confirmed").contains(state))throw new ApiException(409,"已进入履约流程，请联系卖家处理售后");
+            if(action.equals("refund")){if(!s(row,"settlement").equals("confirmed"))throw new ApiException(403,"仅管理员可登记已核实的线下退款");row.put("settlement","refunded");row.put("settlementNote",refundNote);}else if(s(row,"settlement").equals("confirmed"))throw new ApiException(409,"请先由管理员核实线下退款");
             Map<String,Object> product=store.get("product",s(row,"productId"));product.put("stock",((Number)product.get("stock")).intValue()+((Number)row.get("quantity")).intValue());product.put("stockRevision",revision(product)+1);store.save("product",product);row.put("status","cancelled");
-        }else if(action.equals("receive")){if(!buyer||!Arrays.asList("shipped","ready").contains(state))throw new ApiException(409,"本人收到商品后才可确认收货");row.put("status","completed");}
+        }else if(action.equals("receive")){if(!buyer)throw new ApiException(409,"本人收到商品后才可确认收货");if(state.equals("completed"))return ApiResponse.ok(row);if(!Arrays.asList("shipped","ready").contains(state))throw new ApiException(409,"本人收到商品后才可确认收货");row.put("status","completed");}
         else {
             if(!admin)throw new ApiException(403,"仅管理员可以确认、结算或发货");
-            if(action.equals("confirm")){if(!state.equals("pending"))throw new ApiException(409,"订单已处理");row.put("status","confirmed");}
-            if(action.equals("settle")){if(!Arrays.asList("confirmed","shipped","ready","completed").contains(state)||s(row,"settlement").equals("confirmed"))throw new ApiException(409,"请先确认订单，勿重复登记结算");if(!flag(input,"verified"))throw new ApiException(400,"须核实线下结算");row.put("settlement","confirmed");row.put("settlementNote",text(input,"note",5,300));}
-            if(action.equals("ship")||action.equals("ready")){if(!state.equals("confirmed"))throw new ApiException(409,"确认订单后才能履约");if(action.equals("ship")!=s(row,"delivery").equals("shipping"))throw new ApiException(400,"操作与配送方式不符");row.put("fulfillment",text(input,"note",5,300));row.put("status",action.equals("ship")?"shipped":"ready");}
+            if(action.equals("confirm")){if(Arrays.asList("confirmed","shipped","ready","completed").contains(state))return ApiResponse.ok(row);if(!state.equals("pending"))throw new ApiException(409,"订单已处理");row.put("status","confirmed");}
+            if(action.equals("settle")){
+                if(!Arrays.asList("confirmed","shipped","ready","completed").contains(state))throw new ApiException(409,"请先确认订单");
+                if(!flag(input,"verified"))throw new ApiException(400,"须核实线下结算");String note=text(input,"note",5,300);
+                if(s(row,"settlement").equals("confirmed")){if(!s(row,"settlementNote").equals(note))throw new ApiException(409,"结算记录已核定，不能重复变更");return ApiResponse.ok(row);}
+                row.put("settlement","confirmed");row.put("settlementNote",note);
+            }
+            if(action.equals("ship")||action.equals("ready")){
+                if(action.equals("ship")!=s(row,"delivery").equals("shipping"))throw new ApiException(400,"操作与配送方式不符");
+                String note=text(input,"note",5,300),next=action.equals("ship")?"shipped":"ready";
+                if(state.equals(next)||state.equals("completed")){if(!s(row,"fulfillment").equals(note))throw new ApiException(409,"履约信息已登记，不能重复变更");return ApiResponse.ok(row);}
+                if(!state.equals("confirmed"))throw new ApiException(409,"确认订单后才能履约");row.put("fulfillment",note);row.put("status",next);
+            }
         }
         row.put("updatedAt",now());store.save("order",row);auth.audit(actor,"shop."+action,id);return ApiResponse.ok(row);
     }

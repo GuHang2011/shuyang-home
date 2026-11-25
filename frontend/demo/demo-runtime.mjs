@@ -1,4 +1,5 @@
 // Browser-only sample data. This module is never loaded by the production build.
+import { demoShop, upgradeShopOrders, orderWork, orderWorkActions } from './demo-shop.mjs';
 import { demoExtensions } from './demo-extensions.mjs';
 export const demoSchema = 1;
 const now = () => new Date().toISOString();
@@ -25,6 +26,7 @@ function railwayMetadata(body) {
 }
 /** Add this release's samples once without replacing existing records or photos. */
 export function upgradeDemoState(state) {
+  upgradeShopOrders(state);
   if (state.eventSignupVersion !== 1) {
     // Previous releases appended a new row each time a member rejoined an event.
     const latest = new Map();
@@ -116,7 +118,10 @@ export async function demoRequest(state, request) {
     const rows = [], add = (row, kind, kindLabel, title, stateLabel, section) => rows.push({ id: row.id, kind, kindLabel, title, state: stateLabel, section, createdAt: row.createdAt, updatedAt: row.createdAt, waitingSince: row.createdAt });
     if (manage) { admin();state.users.filter(u => u.status === 'pending').forEach(u => add(u, 'user', '入会申请', u.name + '的入会申请', '待审核', 'action')); }
     (manage ? state.topics : mine(state.topics)).filter(t => !manage || t.status === 'pending').forEach(t => add(t, 'forum_topic', '论坛主题', t.title, t.status === 'pending' ? '待审核' : '已处理', t.status === 'pending' ? (manage ? 'action' : 'waiting') : 'done'));
-    (manage ? state.orders : mine(state.orders)).filter(o => !manage || o.status === 'pending').forEach(o => add(o, 'order', '特产订单', o.productTitle, o.status === 'pending' ? '待确认' : o.status === 'cancelled' ? '已取消' : '已处理', o.status === 'pending' ? (manage ? 'action' : 'waiting') : 'done'));
+    for (const row of manage ? state.orders : mine(state.orders)) {
+      const work = orderWork(row, manage);
+      if (work) add(row, 'order', '特产订单', row.title || row.productTitle, work.state, work.section);
+    }
     if (!manage) for (const signup of mine(state.signups)) {
       const event = pick(state.events, signup.eventId);
       const ended = Date.parse(event.endsAt) <= Date.now();
@@ -293,23 +298,8 @@ export async function demoRequest(state, request) {
   if (path === '/albums' && !read) { admin();const row = { ...body, id: body.id || id('album'), count: 0 };state.albums = [row, ...state.albums.filter(a => a.id !== row.id)];return row; }
   if ((match = path.match(/^\/albums\/([^/]+)\/photos$/)) && !read) { admin();pick(state.albums, match[1]);const row = { ...body, id: id('photo'), albumId: match[1] };state.photos.push(row);return row; }
   if ((match = path.match(/^\/album-photos\/([^/]+)$/)) && !read) { admin();const row = pick(state.photos, match[1]);Object.assign(row, body);return row; }
-  if (path === '/products' && read) return state.products.filter(p => p.status === 'published' || actor?.role === 'superadmin');
-  if (path === '/products' && !read) { admin();const row = { ...body, id: body.id || id('product'), priceCents: Math.round(Number(body.price) * 100), shippingCents: Math.round(Number(body.shippingFee) * 100) };state.products = [row, ...state.products.filter(p => p.id !== row.id)];return row; }
-  if (path === '/orders' && read) { member();return actor.role === 'superadmin' && url.searchParams.get('manage') === 'true' ? state.orders : mine(state.orders); }
-  if (path === '/orders' && !read) {
-    member();const existing = state.orders.find(o => o.requestId === body.requestId && o.buyerId === actor.id);if (existing) return existing;
-    const product = pick(state.products, body.productId), quantity = Number(body.quantity);
-    if (!Number.isInteger(quantity) || quantity < 1 || quantity > product.stock) fail('可售库存不足');
-    const row = { ...body, id: id('order'), buyerId: actor.id, productTitle: product.title, title: product.title, unitCents: product.priceCents, shippingCents: body.delivery === 'shipping' ? product.shippingCents : 0, totalCents: quantity * product.priceCents + (body.delivery === 'shipping' ? product.shippingCents : 0), status: 'pending', settlement: 'unconfirmed', createdAt: now() };product.stock -= quantity;state.orders.push(row);return row;
-  }
-  if ((match = path.match(/^\/orders\/([^/]+)\/action$/)) && !read) {
-    member();const row = pick(state.orders, match[1]);if (!['cancel', 'receive'].includes(body.action)) admin();else if (row.buyerId !== actor.id) admin();
-    const transitions = { confirm: ['pending', 'confirmed'], ship: ['confirmed', 'shipped'], ready: ['confirmed', 'ready'], receive: ['shipped,ready', 'completed'] };
-    if (body.action === 'cancel') { if (!['pending', 'confirmed'].includes(row.status)) fail('当前订单不可取消');pick(state.products, row.productId).stock += row.quantity;row.status = 'cancelled'; }
-    else if (body.action === 'settle') { if (row.status !== 'confirmed' || body.verified !== true) fail('请先确认订单并核实演示结算');row.settlement = 'confirmed'; }
-    else { const next = transitions[body.action];if (!next || !next[0].split(',').includes(row.status)) fail('订单状态不支持此操作');row.status = next[1]; }
-    row.fulfillment = body.note;return row;
-  }
+  const shopResult = demoShop(state, {path, method, body, actor, member, query: url.searchParams});
+  if (shopResult !== undefined) return shopResult;
   if (path === '/media/upload' && !read) {
     member();const form = await request.formData(), file = form.get('file');
     const display = form.get('scope') === 'display';
@@ -349,7 +339,7 @@ export async function demoRequest(state, request) {
     const actions = [];
     if (manage && kind === 'user') actions.push({ label: '通过入会申请', url: '/admin/members/' + key + '/review', body: { status: 'approved' } });
     if (manage && kind === 'forum_topic') actions.push({ label: '审核通过', url: '/forum/topics/' + key + '/review', body: { status: 'approved' } });
-    if (manage && kind === 'order') actions.push({ label: '确认演示订单', url: '/orders/' + key + '/action', body: { action: 'confirm' } });
+    if (kind === 'order') actions.push(...orderWorkActions(pick(state.orders, key), manage));
     if (!manage && kind === 'signup' && item.section === 'upcoming') {
       const event = pick(state.events, pick(state.signups, key).eventId);
       if (event.status === 'published' && Date.parse(event.startsAt) > Date.now()) actions.push({ label: '取消报名', url: '/events/' + event.id + '/cancel-signup', body: {} });

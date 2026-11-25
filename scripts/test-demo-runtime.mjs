@@ -168,11 +168,110 @@ test('photo post stays pending until demo administrator reviews it', async () =>
   assert.equal(row.status, 'pending');assert.ok(!(await call(state, '/forum/topics')).some(t => t.id === row.id));
   await call(state, '/forum/topics/' + row.id + '/review', 'POST', { status: 'approved' }, 'demo-admin');assert.ok((await call(state, '/forum/topics')).some(t => t.id === row.id));
 });
-test('order reserves stock once; repeated cancel cannot inflate inventory', async () => {
-  const state = createDemoState(), body = { productId: 'demo-product', quantity: 2, requestId: 'once', delivery: 'pickup' };
-  const row = await call(state, '/orders', 'POST', body);await call(state, '/orders', 'POST', body);assert.equal(state.products[0].stock, 18);
-  await call(state, '/orders/' + row.id + '/action', 'POST', { action: 'cancel' });await assert.rejects(call(state, '/orders/' + row.id + '/action', 'POST', { action: 'cancel' }));assert.equal(state.products[0].stock, 20);
+const checkout = (change = {}) => ({
+  productId: 'demo-product', quantity: 2, requestId: crypto.randomUUID(), delivery: 'pickup',
+  name: '演示会员', phone: '13800000001', address: '', consent: true, ...change
 });
+const orderAction = (state, order, body, actor = 'demo-admin') =>
+  call(state, '/orders/' + order.id + '/action', 'POST', body, actor);
+test('an identical checkout recovers the same order after sellout and withdrawal', async () => {
+  const state = createDemoState(), product = state.products[0], body = checkout({quantity: product.stock});
+  const order = await call(state, '/orders', 'POST', body);
+  assert.equal(order.sellerContact, product.sellerContact);
+  assert.equal(order.specification, product.specification);
+  assert.ok(order.orderNo);
+  product.status = 'withdrawn';
+  assert.equal((await call(state, '/orders', 'POST', body)).id, order.id);
+  await assert.rejects(call(state, '/orders', 'POST', {...body, quantity: 1}), /同一请求/);
+  await assert.rejects(call(state, '/orders', 'POST', checkout()), /下架/);
+  assert.equal(state.orders.length, 1);
+  assert.equal(product.stock, 0);
+  await orderAction(state, order, {action: 'cancel'}, 'demo-member');
+  await orderAction(state, order, {action: 'cancel'}, 'demo-member');
+  assert.equal(product.stock, body.quantity);
+});
+test('saving an old product form cannot restore stock reserved by another member', async () => {
+  const state = createDemoState(), product = state.products[0];
+  const edit = {...product, price: '39.00', shippingFee: '0.00', status: 'withdrawn'};
+  await call(state, '/orders', 'POST', checkout());
+  await assert.rejects(call(state, '/products', 'POST', edit, 'demo-admin'), /刷新/);
+  const updated = await call(state, '/products', 'POST', {...edit, stock: product.stock, stockRevision: product.stockRevision}, 'demo-admin');
+  assert.equal(updated.stock, 18);
+  assert.equal((await call(state, '/products', 'GET', undefined, 'demo-admin')).length, 0);
+  assert.equal((await call(state, '/products?manage=true', 'GET', undefined, 'demo-admin')).length, 1);
+});
+test('a price or delivery change requires a fresh confirmation before reserving stock', async () => {
+  const state = createDemoState(), product = state.products[0];
+  const body = checkout({delivery: 'shipping', address: '演示地址五号', expectedUnitCents: product.priceCents, expectedShippingCents: 0});
+  product.priceCents += 100;
+  await assert.rejects(call(state, '/orders', 'POST', body), /价格|运费/);
+  body.expectedUnitCents = product.priceCents;
+  product.shippingCents = 200;
+  await assert.rejects(call(state, '/orders', 'POST', body), /价格|运费/);
+  assert.equal(state.orders.length, 0);
+  assert.equal(product.stock, 20);
+  body.expectedShippingCents = product.shippingCents;
+  const order = await call(state, '/orders', 'POST', body);
+  product.priceCents += 500;
+  assert.equal((await call(state, '/orders', 'POST', body)).totalCents, order.totalCents);
+  assert.equal(product.stock, 18);
+  await assert.rejects(call(state, '/orders', 'POST', checkout({expectedShippingCents: 0})));
+  assert.equal((await call(state, '/orders', 'POST', checkout({expectedUnitCents: product.priceCents, expectedShippingCents: 0}))).shippingCents, 0);
+});
+test('an earlier demo order gets a stable number without rewriting historical details', () => {
+  const state = createDemoState(), uuid = crypto.randomUUID();
+  const old = {id: 'order-' + uuid, productTitle: '旧商品名', fulfillment: '原有自提说明'};
+  state.orders.push({...old});
+  upgradeDemoState(state);
+  const number = state.orders[0].orderNo;
+  assert.match(number, /^SY[A-F0-9]{16}$/);
+  upgradeDemoState(state);
+  assert.deepEqual(state.orders[0], {...old, orderNo: number});
+});
+test('offline payment, refund and cancellation preserve the recorded note and adjust stock once', async () => {
+  const state = createDemoState(), product = state.products[0];
+  const order = await call(state, '/orders', 'POST', checkout());
+  const settle = {action: 'settle', verified: true, note: '已核实线下结算'};
+  const refund = {action: 'refund', note: '已核实线下退款'};
+  await orderAction(state, order, {action: 'confirm'});
+  await orderAction(state, order, settle);
+  await orderAction(state, order, settle);
+  await assert.rejects(orderAction(state, order, {...settle, note: '另外一笔记录'}));
+  await assert.rejects(orderAction(state, order, {action: 'cancel'}, 'demo-member'));
+  assert.equal(product.stock, 18);
+  await orderAction(state, order, refund);
+  await orderAction(state, order, refund);
+  await assert.rejects(orderAction(state, order, {...refund, note: '另外一笔退款'}));
+  assert.equal(order.settlement, 'refunded');
+  assert.equal(order.settlementNote, refund.note);
+  const other = await call(state, '/orders', 'POST', checkout());
+  await orderAction(state, other, {action: 'cancel'}, 'demo-member');
+  await assert.rejects(orderAction(state, other, refund));
+  assert.equal(product.stock, 20);
+});
+for (const delivery of ['shipping', 'pickup']) {
+  test(delivery + ' preserves fulfillment details through receipt and late retries', async () => {
+    const state = createDemoState(), order = await call(state, '/orders', 'POST', checkout({delivery, address: '演示地址五号'}));
+    const fulfill = {action: delivery === 'shipping' ? 'ship' : 'ready', note: '本次履约记录'};
+    const wrong = {...fulfill, action: delivery === 'shipping' ? 'ready' : 'ship'};
+    await orderAction(state, order, {action: 'confirm'});
+    await assert.rejects(orderAction(state, order, wrong));
+    await orderAction(state, order, fulfill);
+    const work = await call(state, '/work/target?kind=order&id=' + order.id);
+    assert.equal(work.section, 'action');
+    assert.ok(work.actions.some(item => item.body.action === 'receive'));
+    await orderAction(state, order, {action: 'receive'}, 'demo-member');
+    const settle = {action: 'settle', verified: true, note: '收货后核实结算'};
+    await orderAction(state, order, settle);
+    for (const retry of [{action: 'confirm'}, fulfill, settle]) await orderAction(state, order, retry);
+    await orderAction(state, order, {action: 'receive'}, 'demo-member');
+    await assert.rejects(orderAction(state, order, {...fulfill, note: '另一条履约记录'}));
+    assert.equal(order.status, 'completed');
+    assert.equal(order.fulfillment, fulfill.note);
+    assert.equal(order.settlementNote, settle.note);
+    assert.equal(state.products[0].stock, 18);
+  });
+}
 test('media is retained as a local Blob without outbound requests', async () => {
   const state = createDemoState(), data = new FormData();data.set('scope', 'forum');data.set('file', new Blob(['synthetic'], { type: 'image/jpeg' }), 'demo.jpg');
   const media = await call(state, '/media/upload', 'POST', data);const blob = await call(state, '/media/' + media.id);assert.equal(await blob.text(), 'synthetic');
